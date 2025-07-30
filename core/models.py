@@ -12,9 +12,10 @@ class Lancamento(models.Model):
     STATUS_CHOICES = [
         ('liberado', 'Liberado'),
         ('aguardando', 'Aguardando'),
+        ('finalizado', 'Finalizado'),
     ]
 
-    po = models.CharField(max_length=10, unique=True)
+    po = models.CharField(max_length=10)
     destino = models.ForeignKey(Destino, on_delete=models.CASCADE)
     quantidade = models.PositiveIntegerField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES)

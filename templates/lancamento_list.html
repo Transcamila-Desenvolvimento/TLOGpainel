@@ -65,7 +65,7 @@
             <span class="inline-flex items-center px-2 py-[2px] rounded-full text-green-700 bg-[#EAFBF0] text-sm font-medium border border-green-100">
               <i class="bi bi-check-circle-fill text-sm mr-1"></i> Liberado
             </span>
-          {% else %}
+          {% elif lancamento.status == 'aguardando' %}
             <span class="inline-flex items-center px-2 py-[2px] rounded-full text-yellow-700 bg-yellow-50 text-sm font-medium border border-yellow-100">
               <i class="bi bi-clock-fill text-sm mr-1"></i> Aguardando
             </span>
@@ -76,7 +76,7 @@
         </td>
         <td class="py-4 px-4">
           <div class="flex gap-2">
-            <button onclick="openEditModal('{% url 'lancamento_update' lancamento.id %}', '{{ lancamento.po }}', '{{ lancamento.destino.id }}', '{{ lancamento.quantidade }}', '{{ lancamento.status }}', '{{ lancamento.observacao|escapejs }}')" class="bg-sky-600 hover:bg-sky-700 text-white px-3 py-1.5 rounded text-sm">
+            <button onclick="openEditModal('{% url 'lancamento_update' lancamento.id %}', '{{ lancamento.po }}', '{{ lancamento.destino.id }}', '{{ lancamento.quantidade }}', '{{ lancamento.status }}', '{{ lancamento.observacao|escapejs }}', '{{ lancamento.id }}')" class="bg-sky-600 hover:bg-sky-700 text-white px-3 py-1.5 rounded text-sm">
               Editar
             </button>
             <button onclick="openDeleteModal('{% url 'lancamento_delete' lancamento.id %}', '{{ lancamento.po }}')" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded text-sm">
@@ -244,6 +244,7 @@
           <select id="edit-status" name="status" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500" required>
             <option value="liberado">Liberado</option>
             <option value="aguardando">Aguardando</option>
+            <option value="finalizado">Finalizado</option>
           </select>
         </div>
         <div>
@@ -352,24 +353,6 @@
     document.body.style.pointerEvents = 'auto';
   }
 
-  // Função para verificar se o PO já existe
-  function checkPoExists(poNumber) {
-    if (!poNumber) return Promise.resolve(false);
-    
-    return fetch(`{% url 'check_po_exists' %}?po=${encodeURIComponent(poNumber)}`, {
-      headers: {
-        'X-Requested-With': 'XMLHttpRequest',
-        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-      }
-    })
-    .then(response => response.json())
-    .then(data => data.exists)
-    .catch(error => {
-      console.error('Erro ao verificar PO:', error);
-      return false;
-    });
-  }
-
   // Função para resetar todos os filtros
   function resetAllFilters() {
     // Limpar filtros de destino
@@ -444,44 +427,15 @@
 
   // Configurar event listeners para os forms
   document.addEventListener('DOMContentLoaded', function() {
-    // Elementos para verificação do PO
-    const poInput = document.getElementById('create-po');
-    const poError = document.getElementById('po-error');
-    const submitButton = document.getElementById('submit-button');
-
-    // Verificação em tempo real do PO
-    poInput.addEventListener('blur', async function() {
-      const poNumber = this.value.trim();
-      poError.classList.add('hidden');
-      submitButton.disabled = false;
-      
-      if (poNumber) {
-        const exists = await checkPoExists(poNumber);
-        if (exists) {
-          poError.textContent = `Erro: esse número de processo já existe: ${poNumber}`;
-          poError.classList.remove('hidden');
-          submitButton.disabled = true;
-        }
-      }
-    });
-
-    // Formulário de criação - Versão robusta
+    // Formulário de criação - sem verificação de número duplicado
     document.getElementById('createModal').querySelector('form').addEventListener('submit', async function(e) {
       e.preventDefault();
       showLoading();
       
       const formData = new FormData(this);
       const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-      const poNumber = formData.get('po');
       
-      // Primeiro verifica se o número de processo já existe
       try {
-        const exists = await checkPoExists(poNumber);
-        if (exists) {
-          throw new Error(`Esse número de processo já existe; você não pode utilizá-lo: ${poNumber}`);
-        }
-        
-        // Se não existir, prossegue com a criação
         const response = await fetch(this.action, {
           method: 'POST',
           body: formData,
@@ -548,8 +502,13 @@
       .then(({ data, text, isJson }) => {
         if (isJson) {
           if (data.success) {
-            closeModal('editModal');
-            refreshTable();
+            if (data.redirect) {
+              // Redireciona para a página de processos finalizados
+              window.location.href = data.redirect;
+            } else {
+              closeModal('editModal');
+              refreshTable();
+            }
             
             if (currentEditId && data.lancamento) {
               const lancamento = data.lancamento;
@@ -563,8 +522,13 @@
             throw new Error(data.message || 'Erro ao atualizar processo');
           }
         } else {
-          closeModal('editModal');
-          refreshTable();
+          // Verifica se o status foi alterado para finalizado na resposta não-JSON
+          if (formData.get('status') === 'finalizado') {
+            window.location.href = "{% url 'processos_finalizados' %}";
+          } else {
+            closeModal('editModal');
+            refreshTable();
+          }
         }
       })
       .catch(error => {
@@ -721,4 +685,5 @@
     });
   });
 </script>
+
 {% endblock %}

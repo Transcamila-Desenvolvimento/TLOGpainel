@@ -1,12 +1,12 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from .models import Destino, Lancamento, ConfiguracaoDashboard
 from .forms import LancamentoForm
 from django.contrib.auth.decorators import login_required
-from django.db.models import Sum
-from django.http import HttpResponse
+from django.contrib import messages
+from django.db.models import Sum, Case, When, IntegerField
+from django.urls import reverse
 import openpyxl
-
 
 def get_tema():
     configuracao, _ = ConfiguracaoDashboard.objects.get_or_create(id=1)
@@ -21,7 +21,13 @@ def painel_tv(request):
     total_aguardando = 0
 
     for destino in destinos:
-        lancamentos = destino.lancamento_set.all()
+        lancamentos = destino.lancamento_set.exclude(status='finalizado').annotate(
+            prioridade=Case(
+                When(status='liberado', then=0),
+                default=1,
+                output_field=IntegerField()
+            )
+        ).order_by('prioridade', '-id')
 
         liberado = lancamentos.filter(status='liberado').aggregate(total=Sum('quantidade'))['total'] or 0
         aguardando = lancamentos.filter(status='aguardando').aggregate(total=Sum('quantidade'))['total'] or 0
@@ -49,7 +55,10 @@ def painel_tv(request):
 
 @login_required
 def lancamento_list(request):
-    lancamentos = Lancamento.objects.select_related('destino').all().order_by('-criado_em')
+    lancamentos = Lancamento.objects.select_related('destino')\
+        .exclude(status='finalizado')\
+        .order_by('-criado_em')
+    
     lancamentos_liberados = lancamentos.filter(status='liberado')
     lancamentos_aguardando = lancamentos.filter(status='aguardando')
     destinos = Destino.objects.all()
@@ -63,6 +72,46 @@ def lancamento_list(request):
     }
 
     return render(request, 'lancamento_list.html', context)
+
+@login_required
+def processos_finalizados(request):
+    lancamentos = Lancamento.objects.select_related('destino')\
+        .filter(status='finalizado')\
+        .order_by('-criado_em')
+    
+    context = {
+        'lancamentos': lancamentos,
+        'tema': get_tema(),
+    }
+
+    return render(request, 'processos_finalizados.html', context)
+
+@login_required
+def acoes_em_lote(request):
+    if request.method == 'POST':
+        ids = request.POST.getlist('selecionados')
+        acao = request.POST.get('acao')
+        novo_status = request.POST.get('novo_status')
+
+        if not ids:
+            messages.warning(request, "Nenhum processo selecionado.")
+            return redirect('processos_finalizados')
+
+        if acao == 'excluir':
+            deletados = Lancamento.objects.filter(id__in=ids, status='finalizado').delete()
+            messages.success(request, f"{len(ids)} processos excluídos.")
+        elif acao == 'alterar_status':
+            if novo_status not in ['Aguardando', 'Liberado']:
+                messages.error(request, "Selecione um status válido para reabertura.")
+                return redirect('processos_finalizados')
+            atualizados = Lancamento.objects.filter(id__in=ids, status='finalizado').update(
+                status=novo_status.lower()
+            )
+            messages.success(request, f"{atualizados} processos reabertos com status '{novo_status}'.")
+        else:
+            messages.error(request, "Ação inválida.")
+
+    return redirect('processos_finalizados')
 
 @login_required
 def lancamento_create(request):
@@ -104,8 +153,12 @@ def lancamento_update(request, pk):
                         'criado_em': updated_lancamento.criado_em.strftime('%d/%m/%Y')
                     }
                 }
+                if updated_lancamento.status == 'finalizado':
+                    data['redirect'] = reverse('processos_finalizados')
                 return JsonResponse(data)
             
+            if updated_lancamento.status == 'finalizado':
+                return redirect('processos_finalizados')
             return redirect('lancamento_list')
         else:
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -153,8 +206,6 @@ def exportar_processos(request):
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "Processos"
-
-    # Cabeçalho com nova coluna
     ws.append(['Processo', 'Destino', 'Quantidade', 'Data de criação', 'Status', 'Observação', 'Criado por'])
 
     lancamentos = Lancamento.objects.all()
@@ -166,7 +217,7 @@ def exportar_processos(request):
             l.criado_em.strftime("%d/%m/%Y"),
             l.status,
             l.observacao,
-            l.criado_por.get_full_name() if l.criado_por else '—'  # Nome completo ou '—'
+            l.criado_por.get_full_name() or l.criado_por.username if l.criado_por else '—'
         ])
 
     response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
@@ -174,7 +225,3 @@ def exportar_processos(request):
     wb.save(response)
     return response
 
-def check_po_exists(request):
-    po = request.GET.get('po', '')
-    exists = Lancamento.objects.filter(po=po).exists()
-    return JsonResponse({'exists': exists})

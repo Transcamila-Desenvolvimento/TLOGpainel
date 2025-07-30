@@ -1,0 +1,97 @@
+{% extends 'base.html' %}
+
+{% block title %}Processos Finalizados - Operação Santos{% endblock %}
+
+{% block content %}
+<!-- Cabeçalho -->
+<form id="batch-form" method="post" action="{% url 'acoes_em_lote' %}">
+  {% csrf_token %}
+  <div class="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4">
+    <div class="flex items-center gap-2">
+      <span class="w-2 h-6 bg-sky-600"></span>
+      <h1 class="text-2xl font-semibold text-gray-900">Processos Finalizados</h1>
+    </div>
+    <div class="flex items-center gap-3">
+      <select id="acao" name="acao" class="border border-gray-300 rounded px-3 py-2 text-sm" required>
+        <option value="">Ação em lote</option>
+        <option value="excluir">Excluir selecionados</option>
+        <option value="alterar_status">Reabrir Processos</option>
+      </select>
+      <select id="novo-status" name="novo_status" class="border border-gray-300 rounded px-3 py-2 text-sm hidden">
+        <option value="">Status para reabertura</option>
+        <option value="Aguardando">Aguardando</option>
+        <option value="Liberado">Liberado</option>
+      </select>
+      <button type="submit" class="bg-sky-600 hover:bg-sky-700 text-white px-4 py-2 rounded text-sm shadow">
+        Aplicar
+      </button>
+    </div>
+  </div>
+
+  <!-- Tabela -->
+  <div class="bg-white rounded-md overflow-hidden">
+    <table class="min-w-full text-[15px]">
+      <thead>
+        <tr class="text-gray-800 text-sm border-b border-gray-200 uppercase tracking-wide">
+          <th class="py-3 px-4 text-left font-medium">
+            <input type="checkbox" id="select-all" class="w-4 h-4 text-sky-600 border-gray-300 rounded focus:ring-sky-500">
+          </th>
+          <th class="py-3 px-4 text-left font-medium">PROCESSO</th>
+          <th class="py-3 px-4 text-left font-medium">DESTINO</th>
+          <th class="py-3 px-4 text-left font-medium">QUANTIDADE</th>
+          <th class="py-3 px-4 text-left font-medium">DATA DE CRIAÇÃO</th>
+          <th class="py-3 px-4 text-left font-medium">OBSERVAÇÃO</th>
+          <th class="py-3 px-4 text-left font-medium">STATUS</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for lancamento in lancamentos %}
+        <tr class="border-b border-gray-100 hover:bg-gray-50">
+          <td class="py-4 px-4">
+            <input type="checkbox" name="selecionados" value="{{ lancamento.id }}" class="w-4 h-4 text-sky-600 border-gray-300 rounded focus:ring-sky-500">
+          </td>
+          <td class="py-4 px-4 font-medium text-gray-900">
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-2 bg-sky-600 rounded-full"></span>
+              {{ lancamento.po }}
+            </div>
+          </td>
+          <td class="py-4 px-4 text-gray-800">{{ lancamento.destino.nome }}</td>
+          <td class="py-4 px-4">{{ lancamento.quantidade }}</td>
+          <td class="py-4 px-4">{{ lancamento.criado_em|date:"d/m/Y" }}</td>
+          <td class="py-4 px-4">{{ lancamento.observacao }}</td>
+          <td class="py-4 px-4">
+            <span class="inline-flex items-center px-2 py-[2px] rounded-full text-sky-700 bg-sky-50 text-sm font-medium border border-sky-100">
+              <i class="bi bi-flag-fill text-sm mr-1"></i> Finalizado
+            </span>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="8" class="py-6 text-center text-gray-400 text-[15px]">Nenhum processo finalizado encontrado</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</form>
+
+<script>
+  document.getElementById('select-all').addEventListener('change', function () {
+    const checkboxes = document.querySelectorAll('input[name="selecionados"]');
+    checkboxes.forEach(cb => cb.checked = this.checked);
+  });
+
+  document.getElementById('acao').addEventListener('change', function () {
+    const novoStatus = document.getElementById('novo-status');
+    if (this.value === 'alterar_status') {
+      novoStatus.classList.remove('hidden');
+      novoStatus.setAttribute('required', 'required');
+    } else {
+      novoStatus.classList.add('hidden');
+      novoStatus.removeAttribute('required');
+      novoStatus.value = '';
+    }
+  });
+</script>
+{% endblock %}
