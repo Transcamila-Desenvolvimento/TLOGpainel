@@ -55,13 +55,14 @@ def painel_tv(request):
 
 @login_required
 def lancamento_list(request):
+    # Ordena os lançamentos por destino (nome A-Z) e depois por data de criação (mais recente primeiro)
     lancamentos = Lancamento.objects.select_related('destino')\
         .exclude(status='finalizado')\
-        .order_by('-criado_em')
+        .order_by('destino__nome', '-criado_em')
     
     lancamentos_liberados = lancamentos.filter(status='liberado')
     lancamentos_aguardando = lancamentos.filter(status='aguardando')
-    destinos = Destino.objects.all()
+    destinos = Destino.objects.all().order_by('nome')  # Ordena destinos por nome A-Z
 
     context = {
         'lancamentos': lancamentos,
@@ -208,7 +209,7 @@ def exportar_processos(request):
     ws.title = "Processos"
     ws.append(['Processo', 'Destino', 'Quantidade', 'Data de criação', 'Status', 'Observação', 'Criado por'])
 
-    lancamentos = Lancamento.objects.all()
+    lancamentos = Lancamento.objects.all().order_by('destino__nome', '-criado_em')
     for l in lancamentos:
         ws.append([
             l.po,
@@ -224,4 +225,3 @@ def exportar_processos(request):
     response['Content-Disposition'] = 'attachment; filename=processos.xlsx'
     wb.save(response)
     return response
-
