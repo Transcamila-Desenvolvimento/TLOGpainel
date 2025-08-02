@@ -7,7 +7,6 @@
   <title>{% block title %}Sistema{% endblock %}</title>
   <link rel="icon" type="image/png" href="{% static 'imagens/icone.png' %}">
 
-
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
 
@@ -34,20 +33,25 @@
       opacity: 0;
       transition: max-height 300ms ease, opacity 300ms ease;
     }
+    
+    /* Estilo para fixar o menu lateral */
+    html, body {
+      height: 100%;
+    }
   </style>
 </head>
-<body class="flex bg-slate-50 text-slate-800 font-sans min-h-screen">
+<body class="flex bg-slate-50 text-slate-800 font-sans h-screen overflow-hidden">
 
   <!-- MENU LATERAL -->
-  <aside class="w-72 bg-white border-r border-slate-200 flex flex-col shadow-sm">
+  <aside class="w-72 bg-white border-r border-slate-200 flex flex-col shadow-sm h-screen fixed">
     
     <!-- Logo -->
     <div class="p-6 border-b border-slate-100 flex items-center justify-center">
       <img src="{% static 'imagens/Transcamila.png' %}" alt="Logo Transcamila" class="h-10 object-contain" />
     </div>
 
-    <!-- Navegação -->
-    <nav class="flex-1 px-4 py-4 space-y-1 text-sm font-medium">
+    <!-- Navegação - conteúdo rolável -->
+    <nav class="flex-1 px-4 py-4 space-y-1 text-sm font-medium overflow-y-auto">
       <a href="{% url 'painel_tv' %}" class="flex items-center gap-3 px-4 py-2 rounded-lg text-slate-700 hover:bg-slate-100 transition-all {% if request.resolver_match.url_name == 'painel_tv' %}bg-blue-50 text-blue-600 font-semibold{% endif %}">
         <i class="bi bi-tv text-lg"></i>
         <span>Painel</span>
@@ -82,8 +86,8 @@
       </a>
     </nav>
 
-    <!-- Rodapé -->
-    <div class="mt-auto px-4 py-5 border-t border-slate-100 text-sm text-slate-500">
+    <!-- Rodapé fixo na parte inferior -->
+    <div class="px-4 py-5 border-t border-slate-100 text-sm text-slate-500 bg-white">
       <div class="flex items-center justify-between gap-3">
         <div class="flex items-center gap-3">
           <div class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold">
@@ -102,8 +106,8 @@
     </div>
   </aside>
 
-  <!-- CONTEÚDO PRINCIPAL -->
-  <main class="flex-1 p-8 overflow-y-auto">
+  <!-- CONTEÚDO PRINCIPAL com margem para o menu fixo -->
+  <main class="flex-1 p-8 overflow-y-auto ml-72">
     {% block content %}{% endblock %}
   </main>
 

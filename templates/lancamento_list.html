@@ -25,7 +25,16 @@
   <table class="min-w-full text-[15px]">
     <thead>
       <tr class="text-gray-800 text-sm border-b border-gray-200 uppercase tracking-wide">
-        <th class="py-3 px-4 text-left font-medium">PROCESSO</th>
+        <th class="py-3 px-4 text-left font-medium" style="min-width: 180px;">
+          <div class="flex items-center gap-2">
+           <span class="whitespace-nowrap">PROCESSO</span>
+           <div class="relative w-28">  <!-- Largura reduzida para 112px -->
+              <input type="text" id="processoFilterInput" placeholder="Filtrar..."
+             class="text-xs border border-gray-300 rounded px-2 py-1 w-full focus:ring-blue-500 focus:border-blue-500 pl-7 h-8">
+          <i class="bi bi-search absolute left-2 top-2 text-gray-400 text-xs"></i>
+          </div>
+          </div>
+        </th>
         <th class="py-3 px-4 text-left font-medium relative">
           <div class="flex items-center gap-1">
             DESTINO
@@ -299,6 +308,7 @@
   // Variáveis para armazenar os filtros ativos
   let activeDestinoFilters = [];
   let activeStatusFilters = [];
+  let activeProcessoFilter = '';
   let currentEditId = null;
 
   // Função para verificar se a resposta é JSON
@@ -355,6 +365,10 @@
 
   // Função para resetar todos os filtros
   function resetAllFilters() {
+    // Limpar filtro de processo
+    document.getElementById('processoFilterInput').value = '';
+    activeProcessoFilter = '';
+    
     // Limpar filtros de destino
     document.querySelectorAll('.destino-filter-checkbox').forEach(checkbox => {
       checkbox.checked = false;
@@ -378,8 +392,13 @@
     const rows = document.querySelectorAll('#lancamentosTableBody tr');
     
     rows.forEach(row => {
+      const processoText = row.querySelector('td:first-child .flex.items-center.gap-2').textContent.trim().toLowerCase();
       const destinoId = row.getAttribute('data-destino');
       const status = row.getAttribute('data-status');
+      
+      // Verificar filtro de processo
+      const processoMatch = !activeProcessoFilter || 
+                         processoText.includes(activeProcessoFilter.toLowerCase());
       
       // Verificar filtros de destino
       const destinoMatch = activeDestinoFilters.length === 0 || 
@@ -390,7 +409,7 @@
                         activeStatusFilters.includes(status);
       
       // Mostrar/ocultar com base na combinação dos filtros
-      if (destinoMatch && statusMatch) {
+      if (processoMatch && destinoMatch && statusMatch) {
         row.style.display = '';
       } else {
         row.style.display = 'none';
@@ -427,6 +446,12 @@
 
   // Configurar event listeners para os forms
   document.addEventListener('DOMContentLoaded', function() {
+    // Filtro dinâmico para número do processo
+    document.getElementById('processoFilterInput').addEventListener('input', function(e) {
+      activeProcessoFilter = e.target.value.trim();
+      applyFilters();
+    });
+
     // Formulário de criação - sem verificação de número duplicado
     document.getElementById('createModal').querySelector('form').addEventListener('submit', async function(e) {
       e.preventDefault();

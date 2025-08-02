@@ -78,7 +78,9 @@ def lancamento_list(request):
 def processos_finalizados(request):
     lancamentos = Lancamento.objects.select_related('destino')\
         .filter(status='finalizado')\
-        .order_by('-criado_em')
+        .order_by('destino__nome', '-criado_em')
+    
+    destinos = Destino.objects.all().order_by('nome')  # Ordena destinos por nome A-Z
     
     context = {
         'lancamentos': lancamentos,
