@@ -1,0 +1,257 @@
+{% load tz %}
+<!-- Abas -->
+<!-- Abas removidas do partial para evitar conflito de IDs e handlers -->
+
+<!-- Aba: Aguardando Confirmação -->
+<div id="conteudo-pendentes" class="tab-content">
+    <!-- Desktop: Tabela -->
+    <div class="hidden md:block bg-white rounded-md overflow-hidden shadow-sm border border-gray-200">
+        <table class="min-w-full text-[14px]">
+            <thead>
+                <tr class="text-gray-800 text-xs border-b border-gray-200 uppercase tracking-wide">
+                    <th class="py-2 px-3 text-left font-medium w-8">
+                        <input type="checkbox" id="selecionar-todos"
+                            class="rounded border-gray-300 text-sky-600 focus:ring-sky-500">
+                    </th>
+                    <th class="py-2 px-3 text-left font-medium">Motorista</th>
+                    <th class="py-2 px-3 text-left font-medium">Placa</th>
+                    <th class="py-2 px-3 text-left font-medium">Tipo</th>
+                    <th class="py-2 px-3 text-left font-medium">Transportadora</th>
+                    <th class="py-2 px-3 text-left font-medium">Onda</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ag in pendentes %}
+                <tr class="border-b border-gray-100 hover:bg-gray-50 agendamento-row" id="ag-{{ ag.id }}"
+                    data-motorista="{{ ag.motorista.nome|lower }}" data-placa="{{ ag.placa_veiculo|lower }}"
+                    data-transportadora="{{ ag.transportadora.nome|lower }}"
+                    data-onda-liberada="{% if ag.onda_liberacao or ag.tipo == 'entrega' %}true{% else %}false{% endif %}">
+                    <td class="py-2 px-3">
+                        {% if ag.onda_liberacao or ag.tipo == 'entrega' %}
+                        <input type="checkbox"
+                            class="ag-checkbox rounded border-gray-300 text-sky-600 focus:ring-sky-500"
+                            value="{{ ag.id }}">
+                        {% else %}
+                        <input type="checkbox"
+                            class="ag-checkbox rounded border-gray-300 text-gray-400 focus:ring-gray-400"
+                            value="{{ ag.id }}" disabled>
+                        {% endif %}
+                    </td>
+                    <td class="py-2 px-3 font-medium text-gray-900">
+                        <div class="flex items-center gap-2">
+                            <span class="w-1.5 h-1.5 bg-sky-600 rounded-full"></span>
+                            {{ ag.motorista.nome }}
+                        </div>
+                    </td>
+                    <td class="py-2 px-3 font-mono text-gray-800">{{ ag.placa_veiculo }}</td>
+                    <td class="py-2 px-3">
+                        {% if ag.tipo == 'coleta' %}
+                        <span
+                            class="inline-flex px-1.5 py-0.5 rounded-full text-blue-700 bg-blue-50 text-xs border border-blue-100">Coleta</span>
+                        {% else %}
+                        <span
+                            class="inline-flex px-1.5 py-0.5 rounded-full text-emerald-700 bg-emerald-50 text-xs border border-emerald-100">Entrega</span>
+                        {% endif %}
+                    </td>
+                    <td class="py-2 px-3">{{ ag.transportadora.nome }}</td>
+                    <td class="py-2 px-3">
+                        {% if ag.tipo == 'entrega' %}
+                        <span
+                            class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200">
+                            N/A
+                        </span>
+                        {% elif ag.onda_liberacao %}
+                        <span
+                            class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <i class="bi bi-check-circle mr-1"></i>Liberada
+                        </span>
+                        {% else %}
+                        <span
+                            class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                            <i class="bi bi-clock-history mr-1"></i>Aguardando
+                        </span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="py-8 text-center text-gray-400">Nenhum veículo aguardando confirmação</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Mobile: Cards -->
+    <div class="md:hidden space-y-2.5">
+        {% for ag in pendentes %}
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-2.5 agendamento-row" id="ag-card-{{ ag.id }}"
+            data-motorista="{{ ag.motorista.nome|lower }}" data-placa="{{ ag.placa_veiculo|lower }}"
+            data-transportadora="{{ ag.transportadora.nome|lower }}"
+            data-onda-liberada="{% if ag.onda_liberacao or ag.tipo == 'entrega' %}true{% else %}false{% endif %}">
+            <div class="mb-3">
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="w-1.5 h-1.5 bg-sky-600 rounded-full"></span>
+                    <h3 class="font-semibold text-gray-900 text-sm">{{ ag.motorista.nome }}</h3>
+                </div>
+                <div class="space-y-1 text-xs text-gray-600">
+                    <div class="flex items-center gap-1.5">
+                        <i class="bi bi-truck text-gray-400 text-xs"></i>
+                        <span class="font-mono">{{ ag.placa_veiculo }}</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <i class="bi bi-tag text-gray-400 text-xs"></i>
+                        {% if ag.tipo == 'coleta' %}
+                        <span
+                            class="inline-flex items-center px-1.5 py-0.5 rounded-full text-blue-700 bg-blue-50 text-xs font-medium border border-blue-100">Coleta</span>
+                        {% else %}
+                        <span
+                            class="inline-flex items-center px-1.5 py-0.5 rounded-full text-emerald-700 bg-emerald-50 text-xs font-medium border border-emerald-100">Entrega</span>
+                        {% endif %}
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <i class="bi bi-building text-gray-400 text-xs"></i>
+                        <span class="truncate">{{ ag.transportadora.nome }}</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <i class="bi bi-file-text text-gray-400 text-xs"></i>
+                        <span class="font-medium text-gray-700">Onda:</span>
+                        {% if ag.tipo == 'entrega' %}
+                        <span
+                            class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200">
+                            N/A
+                        </span>
+                        {% elif ag.onda_liberacao %}
+                        <span
+                            class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <i class="bi bi-check-circle mr-0.5"></i>Liberada
+                        </span>
+                        {% else %}
+                        <span
+                            class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                            <i class="bi bi-clock-history mr-0.5"></i>Aguardando
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% if ag.onda_liberacao or ag.tipo == 'entrega' %}
+            <button onclick="confirmarChegadaIndividual('{{ ag.id }}')"
+                class="w-full flex items-center justify-center gap-2 bg-sky-600 hover:bg-sky-700 text-white text-xs px-3 py-2.5 rounded-md transition-colors">
+                <i class="bi bi-check-lg"></i>
+                <span>Confirmar</span>
+            </button>
+            {% else %}
+            <div
+                class="w-full flex items-center justify-center gap-2 bg-gray-200 text-gray-500 text-xs px-3 py-2.5 rounded-md cursor-not-allowed">
+                <i class="bi bi-lock"></i>
+                <span>Aguardando liberação de onda</span>
+            </div>
+            {% endif %}
+        </div>
+        {% empty %}
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
+            <p class="text-gray-400 text-sm">Nenhum veículo aguardando confirmação</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Aba: Confirmados no Armazém -->
+<div id="conteudo-confirmados" class="tab-content hidden">
+    <!-- Desktop: Tabela -->
+    <div class="hidden md:block bg-white rounded-md overflow-hidden shadow-sm border border-gray-200">
+        <table class="min-w-full text-[14px]">
+            <thead>
+                <tr class="text-gray-800 text-xs border-b border-gray-200 uppercase tracking-wide">
+                    <th class="py-2 px-3 text-left font-medium">Motorista</th>
+                    <th class="py-2 px-3 text-left font-medium">Placa</th>
+                    <th class="py-2 px-3 text-left font-medium">Confirmação Armazém</th>
+                    <th class="py-2 px-3 text-left font-medium">Confirmado por</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ag in concluidos %}
+                <tr class="border-b border-gray-100 hover:bg-gray-50 confirmado-row"
+                    data-motorista="{{ ag.motorista.nome|lower }}" data-placa="{{ ag.placa_veiculo|lower }}"
+                    data-transportadora="{{ ag.transportadora.nome|lower }}">
+                    <td class="py-2 px-3 font-medium text-gray-900">
+                        <div class="flex items-center gap-2">
+                            <span class="w-1.5 h-1.5 bg-emerald-600 rounded-full"></span>
+                            {{ ag.motorista.nome }}
+                        </div>
+                    </td>
+                    <td class="py-2 px-3 font-mono">{{ ag.placa_veiculo }}</td>
+                    <td class="py-2 px-3 text-emerald-600">
+                        {% timezone "America/Cuiaba" %}
+                        {{ ag.armazem_chegada|date:"d/m H:i" }}
+                        {% endtimezone %}
+                    </td>
+                    <td class="py-2 px-3 text-xs text-gray-600">
+                        {% if ag.armazem_confirmado_por.get_full_name %}
+                        {{ ag.armazem_confirmado_por.get_full_name }}
+                        {% elif ag.armazem_confirmado_por.username %}
+                        {{ ag.armazem_confirmado_por.username }}
+                        {% else %}
+                        —
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" class="py-8 text-center text-gray-400">Nenhum veículo confirmado hoje</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Mobile: Cards -->
+    <div class="md:hidden space-y-2.5">
+        {% for ag in concluidos %}
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-2.5 confirmado-row"
+            data-motorista="{{ ag.motorista.nome|lower }}" data-placa="{{ ag.placa_veiculo|lower }}"
+            data-transportadora="{{ ag.transportadora.nome|lower }}">
+            <div class="flex items-center gap-2 mb-2">
+                <span class="w-1.5 h-1.5 bg-emerald-600 rounded-full"></span>
+                <h3 class="font-semibold text-gray-900 text-sm">{{ ag.motorista.nome }}</h3>
+            </div>
+            <div class="space-y-1 text-xs text-gray-600">
+                <div class="flex items-center gap-1.5">
+                    <i class="bi bi-truck text-gray-400 text-xs"></i>
+                    <span class="font-mono">{{ ag.placa_veiculo }}</span>
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <i class="bi bi-check-circle text-emerald-600 text-xs"></i>
+                    <span class="text-emerald-600 font-medium">
+                        {% timezone "America/Cuiaba" %}
+                        Confirmação: {{ ag.armazem_chegada|date:"d/m H:i" }}
+                        {% endtimezone %}
+                    </span>
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <i class="bi bi-person-check text-gray-400 text-xs"></i>
+                    <span class="text-gray-600">
+                        {% if ag.armazem_confirmado_por.get_full_name %}
+                        {{ ag.armazem_confirmado_por.get_full_name }}
+                        {% elif ag.armazem_confirmado_por.username %}
+                        {{ ag.armazem_confirmado_por.username }}
+                        {% else %}
+                        —
+                        {% endif %}
+                    </span>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
+            <p class="text-gray-400 text-sm">Nenhum veículo confirmado hoje</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+
+<!-- Elementos Ocultos para o SmartUpdate atualizar as abas -->
+<span id="badge-pendentes" class="hidden">{{ pendentes.count }}</span>
+<span id="badge-confirmados" class="hidden">{{ concluidos.count }}</span>
