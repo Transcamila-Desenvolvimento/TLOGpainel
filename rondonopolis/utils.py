@@ -877,22 +877,21 @@ def enviar_whatsapp_api(numero, mensagem):
 
 def enviar_email_pendencias_ondas():
     """
-    Envia email para o grupo de logística com pendências de liberação de ondas
-    Lista agendamentos que ainda não tiveram a onda liberada
+    Envia email para o grupo de logística com pendências de liberação (Onda/OD)
+    Lista agendamentos que ainda não tiveram a liberação registrada
     """
     try:
-        # Buscar agendamentos com pendências de onda (sem liberação de onda)
-        # APENAS COLETA - Entrega não requer liberação de onda
+        # Buscar agendamentos com pendências de liberação (Onda/OD)
+        # Agora inclui Coleta (Onda) e Entrega (OD)
         hoje = timezone_today()
         pendencias = Agendamento.objects.filter(
             data_agendada=hoje,
-            onda_liberacao__isnull=True,
-            tipo='coleta'
-        ).select_related('motorista', 'transportadora').order_by('horario_agendado')
+            onda_liberacao__isnull=True
+        ).select_related('motorista', 'transportadora').order_by('tipo', 'horario_agendado')
         
         # Se não houver pendências, não enviar email
         if not pendencias.exists():
-            logger.info("Nenhuma pendência de onda encontrada para hoje")
+            logger.info("Nenhuma pendência de liberação (Onda/OD) encontrada para hoje")
             return
         
         # Buscar grupo de logística
@@ -947,6 +946,7 @@ def enviar_email_pendencias_ondas():
         <table style="width: 100%; border-collapse: collapse; margin: 20px 0; font-family: Arial, sans-serif;">
             <thead>
                 <tr style="background-color: #0ea5e9; color: white;">
+                    <th style="padding: 12px; text-align: left; border: 1px solid #0284c7;">Tipo</th>
                     <th style="padding: 12px; text-align: left; border: 1px solid #0284c7;">Motorista</th>
                     <th style="padding: 12px; text-align: left; border: 1px solid #0284c7;">Data/Horário Agendado</th>
                     <th style="padding: 12px; text-align: left; border: 1px solid #0284c7;">Documentos</th>
@@ -964,8 +964,13 @@ def enviar_email_pendencias_ondas():
             # Combinar data e horário
             data_horario = f"{agendamento.data_agendada.strftime('%d/%m/%Y')} às {agendamento.horario_agendado.strftime('%H:%M')}"
             
+            # Label do tipo
+            tipo_label = "ONDA" if agendamento.tipo == 'coleta' else "OD"
+            bg_color = "#f0f9ff" if agendamento.tipo == 'coleta' else "#fdf2f8" # Azul vs Rosa claro
+            
             tabela_html += f"""
-                <tr style="border-bottom: 1px solid #e2e8f0;">
+                <tr style="border-bottom: 1px solid #e2e8f0; background-color: {bg_color};">
+                    <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">{tipo_label}</td>
                     <td style="padding: 10px; border: 1px solid #e2e8f0;">{agendamento.motorista.nome}</td>
                     <td style="padding: 10px; border: 1px solid #e2e8f0;">{data_horario}</td>
                     <td style="padding: 10px; border: 1px solid #e2e8f0;">{documentos}</td>
@@ -1001,7 +1006,7 @@ def enviar_email_pendencias_ondas():
                             <!-- Cabeçalho -->
                             <tr>
                                 <td align="center" style="padding: 0 24px 24px;">
-                                    <h1 style="font-size: 24px; color: #1e293b; margin: 0; font-weight: 600;">Pendências de Liberação de Onda</h1>
+                                    <h1 style="font-size: 24px; color: #1e293b; margin: 0; font-weight: 600;">Pendências de Liberação (Onda/OD)</h1>
                                     <p style="font-size: 14px; color: #64748b; margin: 8px 0 0;">Data: {hoje.strftime('%d/%m/%Y')}</p>
                                 </td>
                             </tr>
@@ -1010,7 +1015,7 @@ def enviar_email_pendencias_ondas():
                             <tr>
                                 <td style="padding: 0 24px 24px;">
                                     <p style="font-size: 16px; color: #334155; margin: 0 0 16px;">
-                                        Segue abaixo a relação de agendamentos com pendência de liberação de onda:
+                                        Segue abaixo a relação de agendamentos com pendência de liberação (Onda para Coletas e OD para Entregas):
                                     </p>
                                     {tabela_html}
                                     <p style="font-size: 14px; color: #64748b; margin: 20px 0 0;">
@@ -1037,15 +1042,17 @@ def enviar_email_pendencias_ondas():
         
         # Criar versão texto do email
         text_content = f"""
-Pendências de Liberação de Onda
+Pendências de Liberação (Onda/OD)
 Data: {hoje.strftime('%d/%m/%Y')}
 
-Segue abaixo a relação de agendamentos com pendência de liberação de onda:
+Segue abaixo a relação de agendamentos com pendência de liberação (Onda para Coletas e OD para Entregas):
 
 """
         for agendamento in pendencias:
             documentos = agendamento.coluna_ad if agendamento.coluna_ad else "—"
+            tipo_label = "ONDA" if agendamento.tipo == 'coleta' else "OD"
             text_content += f"""
+Tipo: {tipo_label}
 Motorista: {agendamento.motorista.nome}
 Data: {agendamento.data_agendada.strftime('%d/%m/%Y')}
 Horário: {agendamento.horario_agendado.strftime('%H:%M')}
@@ -1055,7 +1062,7 @@ Documentos: {documentos}
         text_content += f"\nTotal de pendências: {pendencias.count()}\n\nTLOGpainel - Transcamila Cargas e Armazéns Gerais LTDA"
         
         # Enviar email
-        subject = f'Pendências de Liberação de Onda - {hoje.strftime("%d/%m/%Y")}'
+        subject = f'Pendências de Liberação (Onda/OD) - {hoje.strftime("%d/%m/%Y")}'
         
         email = EmailMultiAlternatives(
             subject=subject,

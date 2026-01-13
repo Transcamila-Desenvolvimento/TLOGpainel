@@ -2,16 +2,24 @@
 {% load static %}
 {% load tz %}
 
-{% block title %}Liberação de Onda - Operação Rondonópolis{% endblock %}
+{% block title %}Liberação Onda/OD - Operação Rondonópolis{% endblock %}
 
 {% block content %}
 <!-- Cabeçalho -->
 <div class="flex flex-col md:flex-row items-start md:items-center justify-between mb-4 gap-4">
   <div class="flex items-center gap-2">
     <span class="w-2 h-6 bg-sky-600"></span>
-    <h1 class="text-xl md:text-2xl font-semibold text-gray-900">Liberação de Onda</h1>
+    <h1 class="text-xl md:text-2xl font-semibold text-gray-900">Liberação Onda/OD</h1>
+  </div>
+  <!-- Filtro de Data -->
+  <div class="flex items-center gap-2 bg-white p-2 rounded-lg border border-gray-200 shadow-sm">
+    <i class="bi bi-calendar3 text-sky-600"></i>
+    <input type="date" id="filtro-data" value="{{ data_selecionada }}"
+      class="border-none focus:ring-0 text-sm font-medium text-gray-700 cursor-pointer"
+      onchange="window.location.href = '?data=' + this.value">
   </div>
 </div>
+
 
 <!-- Abas -->
 <div class="mb-4 border-b border-gray-200">
@@ -69,14 +77,15 @@
   class="hidden fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-[60] p-2 md:p-4">
   <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[95vh] overflow-y-auto">
     <div class="flex justify-between items-center p-4 md:p-6 border-b border-gray-200 sticky top-0 bg-white z-10">
-      <h3 id="titulo-modal" class="text-lg md:text-xl font-semibold text-gray-900">Liberar Onda</h3>
+      <h3 id="titulo-modal" class="text-lg md:text-xl font-semibold text-gray-900">Liberar Onda/OD</h3>
       <button onclick="fecharModal()" class="text-gray-400 hover:text-gray-500">
         <i class="bi bi-x-lg text-xl md:text-2xl"></i>
       </button>
     </div>
 
     <div class="p-4 md:p-6">
-      <p class="text-xs md:text-sm text-gray-600 mb-4 md:mb-6 text-center">Arraste para o lado para liberar a onda</p>
+      <p class="text-xs md:text-sm text-gray-600 mb-4 md:mb-6 text-center">Arraste para o lado para confirmar a
+        liberação</p>
 
       <div class="swipe-container mb-6 md:mb-8">
         <div class="swipe-track bg-gray-100 rounded-full h-10 md:h-12 relative overflow-hidden border border-gray-300">
@@ -426,7 +435,8 @@
         .then(r => r.json())
         .then(d => {
           if (d.success) {
-            document.getElementById('titulo-modal').textContent = 'Liberar Onda';
+            const tipoLabel = d.agendamento.tipo === 'Entrega' || d.agendamento.tipo === 'entrega' ? 'OD' : 'Onda';
+            document.getElementById('titulo-modal').textContent = 'Liberar ' + tipoLabel;
             document.getElementById('confirmacao-motorista').textContent = d.agendamento.motorista;
             document.getElementById('confirmacao-placa').textContent = d.agendamento.placa_veiculo;
             document.getElementById('confirmacao-transportadora').textContent = d.agendamento.transportadora;
@@ -448,7 +458,7 @@
         });
     } else {
       // Se tiver múltiplos, não mostrar detalhes
-      document.getElementById('titulo-modal').textContent = `Liberar Onda (${quantidade} veículos)`;
+      document.getElementById('titulo-modal').textContent = `Liberar Onda/OD (${quantidade} veículos)`;
       quantidadeSpan.textContent = quantidade;
 
       // Esconder detalhes e mostrar mensagem de múltiplos
@@ -602,7 +612,7 @@
     esconderLoading();
     fecharModal();
     if (d.success) {
-      mostrarToast('Onda liberada com sucesso!', 'success');
+      mostrarToast('Liberação realizada com sucesso!', 'success');
       // Limpar seleção
       limparSelecoes();
       setTimeout(() => location.reload(), 1500);

@@ -42,13 +42,13 @@ def portaria_agendamentos(request):
         agendados = Agendamento.objects.filter(
             data_agendada=hoje,
             portaria_liberacao__isnull=True
-        ).select_related('transportadora').order_by('horario_agendado')
+        ).select_related('transportadora', 'motorista').order_by('horario_agendado')
 
         # Já liberados na portaria (vão para checklist, armazém, etc)
         liberados = Agendamento.objects.filter(
             data_agendada=hoje,
             portaria_liberacao__isnull=False
-        ).select_related('transportadora').order_by('-portaria_liberacao')
+        ).select_related('transportadora', 'motorista', 'portaria_liberado_por').order_by('-portaria_liberacao')
 
         context = {
             'agendamentos': agendados,
@@ -98,6 +98,17 @@ def confirmar_chegada(request):
         enviar_notificacao_etapa(agendamento, 'portaria', request.user)
 
         logger.info(f"PORTARIA - Liberação confirmada por {request.user} - Placa: {agendamento.placa_veiculo}")
+
+        # Forçar atualização explícita das telas afetadas (Garantia extra além dos signals)
+        try:
+             from .models import ControleAtualizacao
+             from django.utils import timezone
+             agora = timezone.now()
+             ControleAtualizacao.objects.update_or_create(tela='portaria', defaults={'ultima_atualizacao': agora})
+             ControleAtualizacao.objects.update_or_create(tela='checklist', defaults={'ultima_atualizacao': agora})
+             ControleAtualizacao.objects.update_or_create(tela='agendamentos', defaults={'ultima_atualizacao': agora})
+        except Exception as e:
+             logger.error(f"Erro ao forçar atualização explícita (portaria): {e}")
 
         return JsonResponse({
             'success': True,
@@ -228,6 +239,18 @@ def confirmar_chegada_multipla(request):
         except Exception as e:
             resultados['erros'] += 1
             resultados['detalhes'].append({'id': agendamento_id, 'sucesso': False, 'erro': str(e)})
+
+    if resultados['sucessos'] > 0:
+        # Forçar atualização explícita das telas afetadas (Garantia extra além dos signals)
+        try:
+             from .models import ControleAtualizacao
+             from django.utils import timezone
+             agora = timezone.now()
+             ControleAtualizacao.objects.update_or_create(tela='portaria', defaults={'ultima_atualizacao': agora})
+             ControleAtualizacao.objects.update_or_create(tela='checklist', defaults={'ultima_atualizacao': agora})
+             ControleAtualizacao.objects.update_or_create(tela='agendamentos', defaults={'ultima_atualizacao': agora})
+        except Exception as e:
+             logger.error(f"Erro ao forçar atualização explícita (portaria multipla): {e}")
 
     return JsonResponse({
         'success': resultados['sucessos'] > 0,
@@ -528,29 +551,7 @@ def documento_impressao(request):
         return JsonResponse({'success': False, 'error': 'Erro ao gerar documento'})
 
 
-@login_required
-@acesso_permitido_apenas_para_filial('rondonopolis')
-@acesso_permitido_por_aba('checklist')
-def checklist(request):
-    """
-    Tela do CheckList - mostra veículos liberados na portaria e aguardando checklist
-    """
-    hoje = timezone_now().date()
-    pendentes = Agendamento.objects.filter(
-        data_agendada=hoje,
-        portaria_liberacao__isnull=False,
-        checklist_data__isnull=True
-    ).select_related('transportadora')
 
-    concluidos = Agendamento.objects.filter(
-        data_agendada=hoje,
-        checklist_data__isnull=False
-    ).select_related('transportadora')
-
-    return render(request, 'checklist.html', {
-        'pendentes': pendentes,
-        'concluidos': concluidos,
-    })
 
 
 @login_required
@@ -564,17 +565,19 @@ def checklist_atualizar_dados(request):
     try:
         hoje = timezone_now().date()
 
-        # Pendentes: liberados na portaria mas sem checklist
+        # Pendentes: liberados na portaria mas sem checklist (APENAS COLETA)
         pendentes = Agendamento.objects.filter(
             data_agendada=hoje,
             portaria_liberacao__isnull=False,
-            checklist_data__isnull=True
+            checklist_data__isnull=True,
+            tipo='coleta'
         ).select_related('transportadora', 'motorista', 'portaria_liberado_por').order_by('portaria_liberacao')
 
-        # Concluídos: já preencheram checklist
+        # Concluídos: já preencheram checklist (APENAS COLETA)
         concluidos = Agendamento.objects.filter(
             data_agendada=hoje,
-            checklist_data__isnull=False
+            checklist_data__isnull=False,
+            tipo='coleta'
         ).select_related('transportadora', 'motorista', 'checklist_preenchido_por').order_by('-checklist_data')
 
         # Serializar pendentes
@@ -639,17 +642,20 @@ def checklist(request):
     pendentes = Agendamento.objects.filter(
         data_agendada=hoje,
         portaria_liberacao__isnull=False,
-        checklist_data__isnull=True
-    ).select_related('transportadora').order_by('portaria_liberacao')
+        checklist_data__isnull=True,
+        tipo='coleta'
+    ).select_related('transportadora', 'motorista', 'portaria_liberado_por').order_by('portaria_liberacao')
 
     concluidos = Agendamento.objects.filter(
         data_agendada=hoje,
         checklist_data__isnull=False
-    ).select_related('transportadora').order_by('-checklist_data')
+    ).select_related('transportadora', 'motorista', 'checklist_preenchido_por').order_by('-checklist_data')
 
     return render(request, 'checklist.html', {
         'pendentes': pendentes,
         'concluidos': concluidos,
+        'total_pendentes': pendentes.count(),
+        'total_concluidos': concluidos.count(),
     })
 
 @login_required
@@ -715,6 +721,16 @@ def preencher_checklist(request):
             erros += 1
 
     if sucessos > 0:
+        # Forçar atualização explícita das telas afetadas (Garantia extra além dos signals)
+        try:
+             from .models import ControleAtualizacao
+             agora = timezone_now()
+             ControleAtualizacao.objects.update_or_create(tela='checklist', defaults={'ultima_atualizacao': agora})
+             ControleAtualizacao.objects.update_or_create(tela='onda', defaults={'ultima_atualizacao': agora})
+             ControleAtualizacao.objects.update_or_create(tela='armazem', defaults={'ultima_atualizacao': agora})
+        except Exception as e:
+             logger.error(f"Erro ao forçar atualização explícita (checklist): {e}")
+
         return JsonResponse({
             'success': True,
             'message': f'CheckList #{numero_checklist} registrado em {sucessos} veículo(s)!'
@@ -732,23 +748,32 @@ def preencher_checklist(request):
 def armazem(request):
     hoje = timezone_now().date()
 
-    # Veículos que já passaram no CheckList e ainda NÃO entraram no armazém
-    # Nota: Aparecem mesmo sem liberação de onda, mas o botão só aparece se houver liberação
+    # ARMAZÉM: Lógica combinada
+    # COLETA: Precisa de CHECKLIST
+    # ENTREGA: Basta ter passado na PORTARIA
+    
+    # query complexa usando Q objects
     pendentes = Agendamento.objects.filter(
         data_agendada=hoje,
-        checklist_data__isnull=False,
         armazem_chegada__isnull=True
-    ).select_related('transportadora').order_by('checklist_data')
+    ).filter(
+        # Caso Coleta: ter checklist
+        (Q(tipo='coleta') & Q(checklist_data__isnull=False)) |
+        # Caso Entrega: ter portaria (checklist é null)
+        (Q(tipo='entrega') & Q(portaria_liberacao__isnull=False))
+    ).select_related('transportadora', 'motorista').order_by('horario_agendado')
 
     # Veículos que já entraram no armazém (processo concluído ou em andamento)
     concluidos = Agendamento.objects.filter(
         data_agendada=hoje,
         armazem_chegada__isnull=False
-    ).select_related('transportadora').order_by('-armazem_chegada')
+    ).select_related('transportadora', 'motorista', 'armazem_confirmado_por').order_by('-armazem_chegada')
 
     return render(request, 'armazem.html', {
         'pendentes': pendentes,
         'concluidos': concluidos,
+        'total_pendentes': pendentes.count(),
+        'total_concluidos': concluidos.count(),
     })
 
 
@@ -763,12 +788,16 @@ def armazem_atualizar_dados(request):
     try:
         hoje = timezone_now().date()
 
-        # Pendentes: já passaram no CheckList mas ainda não entraram no armazém
+        # Pendentes: armazém
         pendentes = Agendamento.objects.filter(
             data_agendada=hoje,
-            checklist_data__isnull=False,
             armazem_chegada__isnull=True
-        ).select_related('transportadora', 'motorista').order_by('checklist_data')
+        ).filter(
+            # Caso Coleta: ter checklist
+            (Q(tipo='coleta') & Q(checklist_data__isnull=False)) |
+            # Caso Entrega: ter portaria (checklist é null)
+            (Q(tipo='entrega') & Q(portaria_liberacao__isnull=False))
+        ).select_related('transportadora', 'motorista').order_by('horario_agendado')
 
         # Concluídos: já entraram no armazém
         concluidos = Agendamento.objects.filter(
@@ -842,8 +871,8 @@ def armazem_registrar_entrada(request):
                 if ag.armazem_chegada is not None:
                     continue
 
-                # VALIDAÇÃO CRÍTICA: Verificar se a onda está liberada
-                if ag.onda_liberacao is None:
+                # VALIDAÇÃO CRÍTICA: Verificar se a onda está liberada (APENAS SE FOR COLETA)
+                if ag.tipo == 'coleta' and ag.onda_liberacao is None:
                     erros_onda.append(ag.placa_veiculo)
                     continue
 
@@ -874,6 +903,16 @@ def armazem_registrar_entrada(request):
             continue
         except Exception as e:
             logger.error(f"Erro ao registrar entrada no armazém (ID {ag_id}): {e}")
+
+    if sucessos > 0:
+        # Forçar atualização explícita das telas afetadas (Garantia extra além dos signals)
+        try:
+             from .models import ControleAtualizacao
+             agora = timezone_now()
+             ControleAtualizacao.objects.update_or_create(tela='armazem', defaults={'ultima_atualizacao': agora})
+             ControleAtualizacao.objects.update_or_create(tela='liberacao-documentos', defaults={'ultima_atualizacao': agora})
+        except Exception as e:
+             logger.error(f"Erro ao forçar atualização explícita (armazem): {e}")
 
     if sucessos > 0 and not erros_onda:
         return JsonResponse({
@@ -909,21 +948,24 @@ def liberacao_onda(request):
     """
     hoje = timezone_now().date()
     
-    # Query base - sempre filtra por data de hoje
+    # Query base - sempre filtra por data de hoje e TIPO COLETA (Entrega não tem onda)
     pendentes = Agendamento.objects.filter(
         data_agendada=hoje,
-        onda_liberacao__isnull=True
+        onda_liberacao__isnull=True,
+        tipo='coleta'
     ).select_related('transportadora', 'motorista').order_by('horario_agendado', 'data_agendada')
 
     concluidos = Agendamento.objects.filter(
         data_agendada=hoje,
         onda_liberacao__isnull=False
-    ).select_related('transportadora', 'motorista').order_by('-onda_liberacao')
+    ).select_related('transportadora', 'motorista', 'onda_liberado_por').order_by('-onda_liberacao')
 
     return render(request, 'liberacao_onda.html', {
         'pendentes': pendentes,
         'concluidos': concluidos,
-        'agora': timezone_now()
+        'agora': timezone_now(),
+        'total_pendentes': pendentes.count(),
+        'total_concluidos': concluidos.count(),
     })
 
 
@@ -938,10 +980,11 @@ def onda_atualizar_dados(request):
     try:
         hoje = timezone_now().date()
         
-        # Pendentes: agendamentos sem liberação de onda
+        # Pendentes: agendamentos sem liberação de onda (APENAS COLETA)
         pendentes = Agendamento.objects.filter(
             data_agendada=hoje,
-            onda_liberacao__isnull=True
+            onda_liberacao__isnull=True,
+            tipo='coleta'
         ).select_related('transportadora', 'motorista').order_by('horario_agendado', 'data_agendada')
 
         # Concluídos: já liberados
@@ -1049,6 +1092,15 @@ def onda_registrar_liberacao(request):
             logger.error(f"Erro ao registrar liberação da onda (ID {ag_id}): {e}")
 
     if sucessos > 0:
+        # Forçar atualização explícita das telas afetadas (Garantia extra além dos signals)
+        try:
+             from .models import ControleAtualizacao
+             agora = timezone_now()
+             ControleAtualizacao.objects.update_or_create(tela='onda', defaults={'ultima_atualizacao': agora})
+             ControleAtualizacao.objects.update_or_create(tela='armazem', defaults={'ultima_atualizacao': agora})
+        except Exception as e:
+             logger.error(f"Erro ao forçar atualização explícita (onda): {e}")
+
         return JsonResponse({
             'success': True,
             'message': f'Liberação da onda registrada em {sucessos} veículo(s)!'
@@ -1084,12 +1136,14 @@ def liberacao_documentos(request):
     concluidos = Agendamento.objects.filter(
         data_agendada=hoje,
         documentos_liberacao__isnull=False
-    ).select_related('transportadora', 'motorista').order_by('-documentos_liberacao')
+    ).select_related('transportadora', 'motorista', 'documentos_liberado_por').order_by('-documentos_liberacao')
 
     return render(request, 'liberacao_documentos.html', {
         'pendentes': pendentes,
         'concluidos': concluidos,
-        'agora': timezone_now()
+        'agora': timezone_now(),
+        'total_pendentes': pendentes.count(),
+        'total_concluidos': concluidos.count(),
     })
 
 
@@ -1215,6 +1269,14 @@ def documentos_registrar_liberacao(request):
             logger.error(f"Erro ao registrar liberação dos documentos (ID {ag_id}): {e}")
 
     if sucessos > 0:
+        # Forçar atualização explícita das telas afetadas (Garantia extra além dos signals)
+        try:
+             from .models import ControleAtualizacao
+             agora = timezone_now()
+             ControleAtualizacao.objects.update_or_create(tela='liberacao-documentos', defaults={'ultima_atualizacao': agora})
+        except Exception as e:
+             logger.error(f"Erro ao forçar atualização explícita (documentos): {e}")
+
         return JsonResponse({
             'success': True,
             'message': f'Documentos liberados em {sucessos} veículo(s)!'
@@ -1305,100 +1367,7 @@ def visualizacao_processos(request):
         return render(request, 'visualizacao_processos.html', {'agendamentos': []})
 
 
-def get_etapas_ordenadas(agendamento):
-    """
-    Retorna as etapas ordenadas pela ordem de conclusão
-    Converte os datetimes para o fuso horário de Rondonópolis
-    """
-    from .utils import converter_para_timezone_rdn
-    
-    etapas = []
-    
-    # Portaria - sempre primeira etapa
-    portaria_concluida = bool(agendamento.portaria_liberacao)
-    portaria_data = converter_para_timezone_rdn(agendamento.portaria_liberacao) if agendamento.portaria_liberacao else None
-    etapas.append({
-        'nome': 'Portaria',
-        'concluida': portaria_concluida,
-        'disponivel': True,
-        'data': portaria_data,
-        'ordem_padrao': 1,
-        'tipo': 'sequencial'
-    })
-    
-    # Checklist - só disponível após portaria
-    checklist_concluida = bool(agendamento.checklist_data)
-    checklist_disponivel = portaria_concluida
-    checklist_data = converter_para_timezone_rdn(agendamento.checklist_data) if agendamento.checklist_data else None
-    etapas.append({
-        'nome': 'Checklist',
-        'concluida': checklist_concluida,
-        'disponivel': checklist_disponivel,
-        'data': checklist_data,
-        'ordem_padrao': 2,
-        'tipo': 'sequencial'
-    })
-    
-    # Onda - etapa independente (vem antes do Armazém na visualização)
-    onda_concluida = bool(agendamento.onda_liberacao)
-    onda_data = converter_para_timezone_rdn(agendamento.onda_liberacao) if agendamento.onda_liberacao else None
-    etapas.append({
-        'nome': 'Onda',
-        'concluida': onda_concluida,
-        'disponivel': onda_concluida,  # Só fica disponível se já foi concluída
-        'data': onda_data,
-        'ordem_padrao': 3,
-        'tipo': 'independente'
-    })
-    
-    # Armazém - só disponível após checklist
-    armazem_concluida = bool(agendamento.armazem_chegada)
-    armazem_disponivel = checklist_concluida
-    armazem_data = converter_para_timezone_rdn(agendamento.armazem_chegada) if agendamento.armazem_chegada else None
-    etapas.append({
-        'nome': 'Armazém',
-        'concluida': armazem_concluida,
-        'disponivel': armazem_disponivel,
-        'data': armazem_data,
-        'ordem_padrao': 4,
-        'tipo': 'sequencial'
-    })
-    
-    # Documentos - última etapa, só disponível após armazém
-    documentos_concluida = bool(agendamento.documentos_liberacao)
-    documentos_disponivel = armazem_concluida
-    documentos_data = converter_para_timezone_rdn(agendamento.documentos_liberacao) if agendamento.documentos_liberacao else None
-    etapas.append({
-            'nome': 'Documentos',
-        'concluida': documentos_concluida,
-        'disponivel': documentos_disponivel,
-        'data': documentos_data,
-        'ordem_padrao': 5,
-        'tipo': 'sequencial'
-    })
-    
-    # Ordenar etapas pela ordem de conclusão (data/hora)
-    # Separar etapas concluídas e não concluídas
-    from datetime import datetime
-    etapas_concluidas = [e for e in etapas if e['concluida']]
-    etapas_nao_concluidas = [e for e in etapas if not e['concluida']]
-    
-    # Ordenar concluídas pela data de conclusão (crescente)
-    etapas_concluidas_ordenadas = sorted(
-        etapas_concluidas,
-        key=lambda x: x['data'] if x['data'] else datetime.min
-    )
-    
-    # Ordenar não concluídas pela ordem padrão
-    etapas_nao_concluidas_ordenadas = sorted(
-        etapas_nao_concluidas,
-        key=lambda x: x.get('ordem_padrao', x.get('ordem', 999))
-    )
-    
-    # Combinar: concluídas primeiro (ordenadas por data), depois não concluídas (ordenadas por ordem padrão)
-    etapas_ordenadas = etapas_concluidas_ordenadas + etapas_nao_concluidas_ordenadas
-    
-    return etapas_ordenadas
+
 
 
 from django.shortcuts import render
@@ -1512,7 +1481,7 @@ def portaria_agendamentos(request):
         liberados = Agendamento.objects.filter(
             data_agendada=hoje,
             portaria_liberacao__isnull=False
-        ).select_related('transportadora', 'motorista').order_by('-portaria_liberacao')
+        ).select_related('transportadora', 'motorista', 'portaria_liberado_por').order_by('-portaria_liberacao')
 
         # Motoristas para a aba de telefones
         motoristas = Motorista.objects.all().order_by('nome')
@@ -2286,6 +2255,7 @@ def dados_etapas_agendamento(request, agendamento_id):
         # Preparar dados para retornar (formato ISO para datetime-local)
         dados = {
             'id': agendamento.id,
+            'tipo': agendamento.tipo,  # Adicionado tipo para controle no frontend
             'portaria_liberacao': portaria_liberacao.strftime('%Y-%m-%dT%H:%M') if portaria_liberacao else None,
             'checklist_numero': agendamento.checklist_numero or '',
             'checklist_data': checklist_data.strftime('%Y-%m-%dT%H:%M') if checklist_data else None,
@@ -2682,28 +2652,7 @@ def iniciar_chamada_motorista(request):
 
 @login_required
 @acesso_permitido_apenas_para_filial('rondonopolis')
-@acesso_permitido_por_aba('checklist')
-def checklist(request):
-    """
-    Tela do CheckList - mostra veículos liberados na portaria e aguardando checklist
-    """
-    hoje = timezone_now().date()
 
-    pendentes = Agendamento.objects.filter(
-        data_agendada=hoje,
-        portaria_liberacao__isnull=False,
-        checklist_data__isnull=True
-    ).select_related('transportadora', 'motorista').order_by('portaria_liberacao')
-
-    concluidos = Agendamento.objects.filter(
-        data_agendada=hoje,
-        checklist_data__isnull=False
-    ).select_related('transportadora', 'motorista').order_by('-checklist_data')
-
-    return render(request, 'checklist.html', {
-        'pendentes': pendentes,
-        'concluidos': concluidos,
-    })
 
 
 @login_required
@@ -2787,29 +2736,7 @@ def preencher_checklist(request):
         })
 
 
-@login_required
-@acesso_permitido_apenas_para_filial('rondonopolis')
-@acesso_permitido_por_aba('armazem')
-def armazem(request):
-    hoje = timezone_now().date()
 
-    # Veículos que já passaram no CheckList e ainda NÃO entraram no armazém
-    pendentes = Agendamento.objects.filter(
-        data_agendada=hoje,
-        checklist_data__isnull=False,
-        armazem_chegada__isnull=True
-    ).select_related('transportadora', 'motorista').order_by('checklist_data')
-
-    # Veículos que já entraram no armazém (processo concluído ou em andamento)
-    concluidos = Agendamento.objects.filter(
-        data_agendada=hoje,
-        armazem_chegada__isnull=False
-    ).select_related('transportadora', 'motorista').order_by('-armazem_chegada')
-
-    return render(request, 'armazem.html', {
-        'pendentes': pendentes,
-        'concluidos': concluidos,
-    })
 
 
 @login_required
@@ -2976,6 +2903,9 @@ def get_etapas_ordenadas(agendamento):
     
     etapas = []
     
+    # Identificar tipo
+    is_entrega = (agendamento.tipo == 'entrega')
+
     # Portaria - sempre primeira etapa
     portaria_concluida = bool(agendamento.portaria_liberacao)
     portaria_data = converter_para_timezone_rdn(agendamento.portaria_liberacao) if agendamento.portaria_liberacao else None
@@ -2988,34 +2918,45 @@ def get_etapas_ordenadas(agendamento):
         'tipo': 'sequencial'
     })
     
-    # Checklist - só disponível após portaria
+    # Checklist - APENAS PARA COLETA
     checklist_concluida = bool(agendamento.checklist_data)
-    checklist_disponivel = portaria_concluida
-    checklist_data = converter_para_timezone_rdn(agendamento.checklist_data) if agendamento.checklist_data else None
-    etapas.append({
-        'nome': 'Checklist',
-        'concluida': checklist_concluida,
-        'disponivel': checklist_disponivel,
-        'data': checklist_data,
-        'ordem_padrao': 2,
-        'tipo': 'sequencial'
-    })
+    if not is_entrega:
+        checklist_disponivel = portaria_concluida
+        checklist_data = converter_para_timezone_rdn(agendamento.checklist_data) if agendamento.checklist_data else None
+        etapas.append({
+            'nome': 'Checklist',
+            'concluida': checklist_concluida,
+            'disponivel': checklist_disponivel,
+            'data': checklist_data,
+            'ordem_padrao': 2,
+            'tipo': 'sequencial'
+        })
     
-    # Onda - etapa independente (vem antes do Armazém na visualização)
-    onda_concluida = bool(agendamento.onda_liberacao)
-    onda_data = converter_para_timezone_rdn(agendamento.onda_liberacao) if agendamento.onda_liberacao else None
-    etapas.append({
-        'nome': 'Onda',
-        'concluida': onda_concluida,
-        'disponivel': onda_concluida,  # Só fica disponível se já foi concluída
-        'data': onda_data,
-        'ordem_padrao': 3,
-        'tipo': 'independente'
-    })
+    # Onda - APENAS PARA COLETA
+    # etapa independente (vem antes do Armazém na visualização)
+    if not is_entrega:
+        onda_concluida = bool(agendamento.onda_liberacao)
+        onda_data = converter_para_timezone_rdn(agendamento.onda_liberacao) if agendamento.onda_liberacao else None
+        etapas.append({
+            'nome': 'Onda',
+            'concluida': onda_concluida,
+            'disponivel': onda_concluida,  # Só fica disponível se já foi concluída
+            'data': onda_data,
+            'ordem_padrao': 3,
+            'tipo': 'independente'
+        })
     
-    # Armazém - só disponível após checklist
+    # Armazém
     armazem_concluida = bool(agendamento.armazem_chegada)
-    armazem_disponivel = checklist_concluida
+    
+    # Disponibilidade do Armazém depende do tipo
+    if is_entrega:
+        # Entrega: Disponível após Portaria
+        armazem_disponivel = portaria_concluida
+    else:
+        # Coleta: Disponível após Checklist
+        armazem_disponivel = checklist_concluida
+        
     armazem_data = converter_para_timezone_rdn(agendamento.armazem_chegada) if agendamento.armazem_chegada else None
     etapas.append({
         'nome': 'Armazém',
@@ -3542,18 +3483,23 @@ def processos_dashboard(request):
         'Concluído': processos_concluidos
     }
     
-    # Calcular tempos médios entre etapas (para processos que têm as etapas consecutivas concluídas)
+    # Calcular tempos médios entre etapas separados por tipo (Coleta e Entrega)
     # Considerar processos que têm pelo menos uma etapa concluída no período filtrado
-    tempos_etapas = {
+    tempos_coleta = {
         'portaria_checklist': [],
         'checklist_armazem': [],
         'armazem_documentos': [],
         'processo_total': []
     }
     
+    tempos_entrega = {
+        'portaria_armazem': [],  # Entrega pula o Checklist
+        'armazem_documentos': [],
+        'processo_total': []
+    }
+    
     # Buscar processos que têm pelo menos Portaria concluída E que foram agendados no período
     # OU que têm alguma etapa concluída no período (para pegar processos em andamento)
-    # Simplificar: buscar processos agendados no período OU com alguma etapa no período
     processos_parciais = Agendamento.objects.filter(
         Q(
             # Processos agendados no período E têm pelo menos Portaria
@@ -3587,46 +3533,83 @@ def processos_dashboard(request):
     processos_parciais = processos_parciais.select_related('transportadora', 'motorista').distinct()
     
     for ag in processos_parciais:
-        # Tempo Portaria -> Checklist (precisa ter ambas concluídas)
-        if ag.portaria_liberacao and ag.checklist_data:
-            diferenca = ag.checklist_data - ag.portaria_liberacao
-            tempo = diferenca.total_seconds() / 3600.0  # em horas decimais
-            if tempo >= 0:  # Permitir 0 também (processos muito rápidos)
-                tempos_etapas['portaria_checklist'].append(tempo)
-        
-        # Tempo Checklist -> Armazém (precisa ter ambas concluídas)
-        if ag.checklist_data and ag.armazem_chegada:
-            diferenca = ag.armazem_chegada - ag.checklist_data
-            tempo = diferenca.total_seconds() / 3600.0  # em horas decimais
-            if tempo >= 0:
-                tempos_etapas['checklist_armazem'].append(tempo)
-        
-        # Tempo Armazém -> Documentos (precisa ter ambas concluídas)
-        if ag.armazem_chegada and ag.documentos_liberacao:
-            diferenca = ag.documentos_liberacao - ag.armazem_chegada
-            tempo = diferenca.total_seconds() / 3600.0  # em horas decimais
-            if tempo >= 0:
-                tempos_etapas['armazem_documentos'].append(tempo)
-        
-        # Tempo total do processo: desde Portaria até a última etapa concluída
-        # Não precisa esperar Documentos, calcula até onde chegou
-        if ag.portaria_liberacao:
-            # Determinar qual foi a última etapa concluída
-            ultima_etapa_data = ag.portaria_liberacao  # Inicializar com portaria
+        # Selecionar o dicionário correto baseado no tipo
+        if ag.tipo == 'coleta':
+            # COLETA: Portaria → Checklist → Armazém → Documentos
             
-            if ag.documentos_liberacao:
-                ultima_etapa_data = ag.documentos_liberacao
-            elif ag.armazem_chegada:
-                ultima_etapa_data = ag.armazem_chegada
-            elif ag.checklist_data:
-                ultima_etapa_data = ag.checklist_data
+            # Tempo Portaria -> Checklist (precisa ter ambas concluídas)
+            if ag.portaria_liberacao and ag.checklist_data:
+                diferenca = ag.checklist_data - ag.portaria_liberacao
+                tempo = diferenca.total_seconds() / 3600.0  # em horas decimais
+                if tempo >= 0:  # Permitir 0 também (processos muito rápidos)
+                    tempos_coleta['portaria_checklist'].append(tempo)
             
-            # Só adicionar se houve progresso (saiu da portaria)
-            if ultima_etapa_data != ag.portaria_liberacao:
-                diferenca = ultima_etapa_data - ag.portaria_liberacao
+            # Tempo Checklist -> Armazém (precisa ter ambas concluídas)
+            if ag.checklist_data and ag.armazem_chegada:
+                diferenca = ag.armazem_chegada - ag.checklist_data
                 tempo = diferenca.total_seconds() / 3600.0  # em horas decimais
                 if tempo >= 0:
-                    tempos_etapas['processo_total'].append(tempo)
+                    tempos_coleta['checklist_armazem'].append(tempo)
+            
+            # Tempo Armazém -> Documentos (precisa ter ambas concluídas)
+            if ag.armazem_chegada and ag.documentos_liberacao:
+                diferenca = ag.documentos_liberacao - ag.armazem_chegada
+                tempo = diferenca.total_seconds() / 3600.0  # em horas decimais
+                if tempo >= 0:
+                    tempos_coleta['armazem_documentos'].append(tempo)
+            
+            # Tempo total do processo: desde Portaria até a última etapa concluída
+            if ag.portaria_liberacao:
+                # Determinar qual foi a última etapa concluída
+                ultima_etapa_data = ag.portaria_liberacao  # Inicializar com portaria
+                
+                if ag.documentos_liberacao:
+                    ultima_etapa_data = ag.documentos_liberacao
+                elif ag.armazem_chegada:
+                    ultima_etapa_data = ag.armazem_chegada
+                elif ag.checklist_data:
+                    ultima_etapa_data = ag.checklist_data
+                
+                # Só adicionar se houve progresso (saiu da portaria)
+                if ultima_etapa_data != ag.portaria_liberacao:
+                    diferenca = ultima_etapa_data - ag.portaria_liberacao
+                    tempo = diferenca.total_seconds() / 3600.0  # em horas decimais
+                    if tempo >= 0:
+                        tempos_coleta['processo_total'].append(tempo)
+        
+        elif ag.tipo == 'entrega':
+            # ENTREGA: Portaria → Armazém → Documentos (pula Checklist)
+            
+            # Tempo Portaria -> Armazém (precisa ter ambas concluídas)
+            if ag.portaria_liberacao and ag.armazem_chegada:
+                diferenca = ag.armazem_chegada - ag.portaria_liberacao
+                tempo = diferenca.total_seconds() / 3600.0  # em horas decimais
+                if tempo >= 0:
+                    tempos_entrega['portaria_armazem'].append(tempo)
+            
+            # Tempo Armazém -> Documentos (precisa ter ambas concluídas)
+            if ag.armazem_chegada and ag.documentos_liberacao:
+                diferenca = ag.documentos_liberacao - ag.armazem_chegada
+                tempo = diferenca.total_seconds() / 3600.0  # em horas decimais
+                if tempo >= 0:
+                    tempos_entrega['armazem_documentos'].append(tempo)
+            
+            # Tempo total do processo: desde Portaria até a última etapa concluída
+            if ag.portaria_liberacao:
+                # Determinar qual foi a última etapa concluída
+                ultima_etapa_data = ag.portaria_liberacao  # Inicializar com portaria
+                
+                if ag.documentos_liberacao:
+                    ultima_etapa_data = ag.documentos_liberacao
+                elif ag.armazem_chegada:
+                    ultima_etapa_data = ag.armazem_chegada
+                
+                # Só adicionar se houve progresso (saiu da portaria)
+                if ultima_etapa_data != ag.portaria_liberacao:
+                    diferenca = ultima_etapa_data - ag.portaria_liberacao
+                    tempo = diferenca.total_seconds() / 3600.0  # em horas decimais
+                    if tempo >= 0:
+                        tempos_entrega['processo_total'].append(tempo)
     
     # Função auxiliar para converter horas decimais em formato HH:MM:SS
     def formatar_tempo_medio(tempo_horas):
@@ -3642,46 +3625,98 @@ def processos_dashboard(request):
         texto = f"{horas:02d}:{minutos:02d}:{segundos:02d}"
         return {'texto': texto}
     
-    # Calcular médias (em horas decimais)
-    # Usar sum() e len() para garantir que está somando todos os tempos corretamente
-    # Aumentar precisão para 4 casas decimais antes de formatar
-    if tempos_etapas['portaria_checklist']:
-        soma_portaria_checklist = sum(tempos_etapas['portaria_checklist'])
-        quantidade_portaria_checklist = len(tempos_etapas['portaria_checklist'])
-        tempo_medio_portaria_checklist_h = soma_portaria_checklist / quantidade_portaria_checklist
-        logger.debug(f"Portaria->Checklist: {quantidade_portaria_checklist} processos, soma={soma_portaria_checklist:.4f}h, média={tempo_medio_portaria_checklist_h:.4f}h")
-    else:
-        tempo_medio_portaria_checklist_h = 0
+    # Função para calcular médias de COLETA (com todas as etapas)
+    def calcular_medias_coleta(tempos_dict, prefixo_log=''):
+        resultados = {}
+        
+        # Portaria -> Checklist
+        if tempos_dict['portaria_checklist']:
+            soma = sum(tempos_dict['portaria_checklist'])
+            qtd = len(tempos_dict['portaria_checklist'])
+            media_h = soma / qtd
+            if prefixo_log:
+                logger.debug(f"{prefixo_log} Portaria->Checklist: {qtd} processos, soma={soma:.4f}h, média={media_h:.4f}h")
+            resultados['portaria_checklist'] = formatar_tempo_medio(media_h)
+        else:
+            resultados['portaria_checklist'] = formatar_tempo_medio(0)
+        
+        # Checklist -> Armazém
+        if tempos_dict['checklist_armazem']:
+            soma = sum(tempos_dict['checklist_armazem'])
+            qtd = len(tempos_dict['checklist_armazem'])
+            media_h = soma / qtd
+            if prefixo_log:
+                logger.debug(f"{prefixo_log} Checklist->Armazém: {qtd} processos, soma={soma:.4f}h, média={media_h:.4f}h")
+            resultados['checklist_armazem'] = formatar_tempo_medio(media_h)
+        else:
+            resultados['checklist_armazem'] = formatar_tempo_medio(0)
+        
+        # Armazém -> Documentos
+        if tempos_dict['armazem_documentos']:
+            soma = sum(tempos_dict['armazem_documentos'])
+            qtd = len(tempos_dict['armazem_documentos'])
+            media_h = soma / qtd
+            if prefixo_log:
+                logger.debug(f"{prefixo_log} Armazém->Documentos: {qtd} processos, soma={soma:.4f}h, média={media_h:.4f}h")
+            resultados['armazem_documentos'] = formatar_tempo_medio(media_h)
+        else:
+            resultados['armazem_documentos'] = formatar_tempo_medio(0)
+        
+        # Processo Total
+        if tempos_dict['processo_total']:
+            soma = sum(tempos_dict['processo_total'])
+            qtd = len(tempos_dict['processo_total'])
+            media_h = soma / qtd
+            if prefixo_log:
+                logger.debug(f"{prefixo_log} Processo Total: {qtd} processos, soma={soma:.4f}h, média={media_h:.4f}h")
+            resultados['processo_total'] = formatar_tempo_medio(media_h)
+        else:
+            resultados['processo_total'] = formatar_tempo_medio(0)
+        
+        return resultados
     
-    if tempos_etapas['checklist_armazem']:
-        soma_checklist_armazem = sum(tempos_etapas['checklist_armazem'])
-        quantidade_checklist_armazem = len(tempos_etapas['checklist_armazem'])
-        tempo_medio_checklist_armazem_h = soma_checklist_armazem / quantidade_checklist_armazem
-        logger.debug(f"Checklist->Armazém: {quantidade_checklist_armazem} processos, soma={soma_checklist_armazem:.4f}h, média={tempo_medio_checklist_armazem_h:.4f}h")
-    else:
-        tempo_medio_checklist_armazem_h = 0
+    # Função para calcular médias de ENTREGA (pula checklist)
+    def calcular_medias_entrega(tempos_dict, prefixo_log=''):
+        resultados = {}
+        
+        # Portaria -> Armazém (delivery pula checklist)
+        if tempos_dict['portaria_armazem']:
+            soma = sum(tempos_dict['portaria_armazem'])
+            qtd = len(tempos_dict['portaria_armazem'])
+            media_h = soma / qtd
+            if prefixo_log:
+                logger.debug(f"{prefixo_log} Portaria->Armazém: {qtd} processos, soma={soma:.4f}h, média={media_h:.4f}h")
+            resultados['portaria_armazem'] = formatar_tempo_medio(media_h)
+        else:
+            resultados['portaria_armazem'] = formatar_tempo_medio(0)
+        
+        # Armazém -> Documentos
+        if tempos_dict['armazem_documentos']:
+            soma = sum(tempos_dict['armazem_documentos'])
+            qtd = len(tempos_dict['armazem_documentos'])
+            media_h = soma / qtd
+            if prefixo_log:
+                logger.debug(f"{prefixo_log} Armazém->Documentos: {qtd} processos, soma={soma:.4f}h, média={media_h:.4f}h")
+            resultados['armazem_documentos'] = formatar_tempo_medio(media_h)
+        else:
+            resultados['armazem_documentos'] = formatar_tempo_medio(0)
+        
+        # Processo Total
+        if tempos_dict['processo_total']:
+            soma = sum(tempos_dict['processo_total'])
+            qtd = len(tempos_dict['processo_total'])
+            media_h = soma / qtd
+            if prefixo_log:
+                logger.debug(f"{prefixo_log} Processo Total: {qtd} processos, soma={soma:.4f}h, média={media_h:.4f}h")
+            resultados['processo_total'] = formatar_tempo_medio(media_h)
+        else:
+            resultados['processo_total'] = formatar_tempo_medio(0)
+        
+        return resultados
     
-    if tempos_etapas['armazem_documentos']:
-        soma_armazem_documentos = sum(tempos_etapas['armazem_documentos'])
-        quantidade_armazem_documentos = len(tempos_etapas['armazem_documentos'])
-        tempo_medio_armazem_documentos_h = soma_armazem_documentos / quantidade_armazem_documentos
-        logger.debug(f"Armazém->Documentos: {quantidade_armazem_documentos} processos, soma={soma_armazem_documentos:.4f}h, média={tempo_medio_armazem_documentos_h:.4f}h")
-    else:
-        tempo_medio_armazem_documentos_h = 0
-    
-    if tempos_etapas['processo_total']:
-        soma_processo_total = sum(tempos_etapas['processo_total'])
-        quantidade_processo_total = len(tempos_etapas['processo_total'])
-        tempo_medio_total_h = soma_processo_total / quantidade_processo_total
-        logger.debug(f"Processo Total: {quantidade_processo_total} processos, soma={soma_processo_total:.4f}h, média={tempo_medio_total_h:.4f}h")
-    else:
-        tempo_medio_total_h = 0
-    
-    # Formatar tempos médios
-    tempo_medio_portaria_checklist = formatar_tempo_medio(tempo_medio_portaria_checklist_h)
-    tempo_medio_checklist_armazem = formatar_tempo_medio(tempo_medio_checklist_armazem_h)
-    tempo_medio_armazem_documentos = formatar_tempo_medio(tempo_medio_armazem_documentos_h)
-    tempo_medio_total = formatar_tempo_medio(tempo_medio_total_h)
+    # Calcular médias separadas para Coleta e Entrega
+    tempos_medios_coleta = calcular_medias_coleta(tempos_coleta, '[COLETA]')
+    tempos_medios_entrega = calcular_medias_entrega(tempos_entrega, '[ENTREGA]')
     
     # Processos concluídos hoje
     processos_concluidos_hoje = agendamentos_filtrados.filter(
@@ -3795,10 +3830,14 @@ def processos_dashboard(request):
         'pendentes_onda': pendentes_onda,
         'pendentes_armazem': pendentes_armazem,
         'pendentes_documentos': pendentes_documentos,
-        'tempo_medio_portaria_checklist': tempo_medio_portaria_checklist,
-        'tempo_medio_checklist_armazem': tempo_medio_checklist_armazem,
-        'tempo_medio_armazem_documentos': tempo_medio_armazem_documentos,
-        'tempo_medio_total': tempo_medio_total,
+        # Tempos médios separados por tipo
+        'tempo_medio_coleta_portaria_checklist': tempos_medios_coleta['portaria_checklist'],
+        'tempo_medio_coleta_checklist_armazem': tempos_medios_coleta['checklist_armazem'],
+        'tempo_medio_coleta_armazem_documentos': tempos_medios_coleta['armazem_documentos'],
+        'tempo_medio_coleta_total': tempos_medios_coleta['processo_total'],
+        'tempo_medio_entrega_portaria_armazem': tempos_medios_entrega['portaria_armazem'],
+        'tempo_medio_entrega_armazem_documentos': tempos_medios_entrega['armazem_documentos'],
+        'tempo_medio_entrega_total': tempos_medios_entrega['processo_total'],
         'processos_concluidos_hoje': processos_concluidos_hoje,
         'dados_periodo': json.dumps(dados_periodo, ensure_ascii=False),
         'dados_transportadoras': json.dumps(dados_transportadoras, ensure_ascii=False),
@@ -3983,3 +4022,112 @@ def atualizar_nomes_para_maiusculas(request):
     except Exception as e:
         logger.error(f"Erro ao atualizar nomes: {str(e)}")
         return JsonResponse({'success': False, 'error': f'Erro: {str(e)}'})
+
+# ==========================================================
+# SMART UPDATE SYSTEM VIEWS
+# ==========================================================
+
+@login_required
+def verificar_atualizacoes(request):
+    """
+    Endpoint leve para verificação de atualizações (Polling Inteligente).
+    Recebe um timestamp (isoformat) e retorna se houve atualização.
+    """
+    tela = request.GET.get('tela')
+    ultimo_timestamp_client = request.GET.get('timestamp')
+    
+    if not tela:
+        return JsonResponse({'update': False, 'erro': 'Tela não informada'})
+        
+    try:
+        from .models import ControleAtualizacao
+        from django.utils.dateparse import parse_datetime
+        from django.utils import timezone
+        
+        # Obter timestamp da última atualização global para esta tela
+        controle = ControleAtualizacao.objects.filter(tela=tela).first()
+        
+        if not controle:
+            return JsonResponse({'update': False, 'timestamp': timezone_now().isoformat()})
+            
+        server_timestamp = controle.ultima_atualizacao
+        
+        should_update = False
+        
+        if ultimo_timestamp_client and ultimo_timestamp_client != 'null':
+            try:
+                client_dt = parse_datetime(ultimo_timestamp_client)
+                if client_dt:
+                   # Normalizar para garantir comparação justa (evitar erro can't compare offset-naive and offset-aware)
+                   if timezone.is_aware(server_timestamp) and timezone.is_naive(client_dt):
+                       client_dt = timezone.make_aware(client_dt)
+                   elif timezone.is_naive(server_timestamp) and timezone.is_aware(client_dt):
+                       server_timestamp = timezone.make_aware(server_timestamp)
+                       
+                   if server_timestamp > client_dt:
+                       should_update = True
+            except Exception as e:
+                logger.warning(f"Erro ao comparar timestamps ({tela}): {e}")
+                should_update = True # Se erro na comparação, força atualizar por segurança
+        else:
+            # Se cliente não mandou timestamp, assume que precisa atualizar
+            should_update = False # Primeira carga já tem dados
+            
+        return JsonResponse({
+            'update': should_update,
+            'timestamp': server_timestamp.isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Erro em verificar_atualizacoes: {e}")
+        return JsonResponse({'update': False})
+
+@login_required
+@acesso_permitido_apenas_para_filial('rondonopolis')
+def portaria_tabela(request):
+    """Retorna apenas o partial HTML da tabela da portaria"""
+    hoje = timezone_now().date()
+    agendados = Agendamento.objects.filter(data_agendada=hoje, portaria_liberacao__isnull=True).select_related('transportadora', 'motorista').order_by('horario_agendado')
+    liberados = Agendamento.objects.filter(data_agendada=hoje, portaria_liberacao__isnull=False).select_related('transportadora', 'motorista', 'portaria_liberado_por').order_by('-portaria_liberacao')
+    return render(request, 'partials/_tabela_portaria.html', {'agendamentos': agendados, 'liberados': liberados, 'agora': timezone_now()})
+
+@login_required
+@acesso_permitido_apenas_para_filial('rondonopolis')
+def checklist_tabela(request):
+    """Retorna apenas o partial HTML da tabela de checklist"""
+    hoje = timezone_now().date()
+    # Pendentes: liberados na portaria mas sem checklist (APENAS COLETA)
+    pendentes = Agendamento.objects.filter(data_agendada=hoje, portaria_liberacao__isnull=False, checklist_data__isnull=True, tipo='coleta').select_related('transportadora', 'motorista', 'portaria_liberado_por').order_by('portaria_liberacao')
+    # Concluidos: já preencheram checklist
+    concluidos = Agendamento.objects.filter(data_agendada=hoje, checklist_data__isnull=False).select_related('transportadora', 'motorista', 'checklist_preenchido_por').order_by('-checklist_data')
+    return render(request, 'partials/_tabela_checklist.html', {'pendentes': pendentes, 'concluidos': concluidos})
+
+@login_required
+@acesso_permitido_apenas_para_filial('rondonopolis')
+def onda_tabela(request):
+    """Retorna apenas o partial HTML da tabela de onda"""
+    hoje = timezone_now().date()
+    # Pendentes: agendamentos sem liberação de onda (APENAS COLETA) - Align with liberacao_onda view
+    pendentes = Agendamento.objects.filter(data_agendada=hoje, onda_liberacao__isnull=True, tipo='coleta').select_related('transportadora', 'motorista').order_by('horario_agendado')
+    concluidos = Agendamento.objects.filter(data_agendada=hoje, onda_liberacao__isnull=False).select_related('transportadora', 'motorista', 'onda_liberado_por').order_by('-onda_liberacao')
+    return render(request, 'partials/_tabela_onda.html', {'pendentes': pendentes, 'concluidos': concluidos})
+
+@login_required
+@acesso_permitido_apenas_para_filial('rondonopolis')
+def armazem_tabela(request):
+    """Retorna apenas o partial HTML da tabela de armazem"""
+    hoje = timezone_now().date()
+    # Lógica combinada do armazém
+    pendentes = Agendamento.objects.filter(data_agendada=hoje, armazem_chegada__isnull=True).filter((Q(tipo='coleta') & Q(checklist_data__isnull=False)) | (Q(tipo='entrega') & Q(portaria_liberacao__isnull=False))).select_related('transportadora', 'motorista').order_by('horario_agendado')
+    concluidos = Agendamento.objects.filter(data_agendada=hoje, armazem_chegada__isnull=False).select_related('transportadora', 'motorista', 'armazem_confirmado_por').order_by('-armazem_chegada')
+    return render(request, 'partials/_tabela_armazem.html', {'pendentes': pendentes, 'concluidos': concluidos})
+
+@login_required
+@acesso_permitido_apenas_para_filial('rondonopolis')
+def documentos_tabela(request):
+    """Retorna apenas o partial HTML da tabela de documentos"""
+    hoje = timezone_now().date()
+    # Regra: Entrou no armazém, mas não liberou documentos
+    pendentes = Agendamento.objects.filter(data_agendada=hoje, armazem_chegada__isnull=False, documentos_liberacao__isnull=True).select_related('transportadora', 'motorista').order_by('armazem_chegada')
+    concluidos = Agendamento.objects.filter(data_agendada=hoje, documentos_liberacao__isnull=False).select_related('transportadora', 'motorista', 'documentos_liberado_por').order_by('-documentos_liberacao')
+    return render(request, 'partials/_tabela_documentos.html', {'pendentes': pendentes, 'concluidos': concluidos})

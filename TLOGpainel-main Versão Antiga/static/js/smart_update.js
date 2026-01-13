@@ -79,20 +79,13 @@ const SmartUpdate = {
         const currentInterval = this.getInterval();
 
         // Params para request
-        const urlParams = new URLSearchParams(window.location.search);
         const params = new URLSearchParams({
             tela: this.tela,
             timestamp: this.timestamp || '',
             _: new Date().getTime() // Cache buster
         });
 
-        // Incluir parâmetros da URL atual (como o filtro de data)
-        urlParams.forEach((value, key) => {
-            if (!params.has(key)) params.append(key, value);
-        });
-
-
-        fetch(`/rondonopolis/smart-update/?${params.toString()}`, {
+        fetch(`/rondonopolis/api/verificar-atualizacoes/?${params.toString()}`, {
             headers: {
                 'X-Requested-With': 'XMLHttpRequest'
             }
@@ -123,16 +116,7 @@ const SmartUpdate = {
     },
 
     refreshTable: function () {
-        const urlParams = new URLSearchParams(window.location.search);
-        const params = new URLSearchParams({
-            _: new Date().getTime()
-        });
-        urlParams.forEach((value, key) => {
-            params.append(key, value);
-        });
-
-        fetch(`/rondonopolis/${this.tela}/tabela/?${params.toString()}`, {
-
+        fetch(`/rondonopolis/${this.tela}/tabela/?_=${new Date().getTime()}`, {
             headers: { 'X-Requested-With': 'XMLHttpRequest' }
         })
             .then(response => response.text())

@@ -16,17 +16,23 @@
 <!-- Abas -->
 <div class="mb-4 border-b border-gray-200">
   <nav class="-mb-px flex justify-between sm:justify-start sm:space-x-4 md:space-x-8">
-    <button id="tab-pendentes" class="tab-button py-2 md:py-3 px-1 sm:px-2 md:px-1 border-b-2 font-medium text-sm sm:text-xs md:text-sm flex items-center gap-1 sm:gap-1.5 md:gap-2 flex-1 sm:flex-initial justify-center sm:justify-start border-sky-500 text-sky-600">
+    <button id="tab-pendentes"
+      class="tab-button py-2 md:py-3 px-1 sm:px-2 md:px-1 border-b-2 font-medium text-sm sm:text-xs md:text-sm flex items-center gap-1 sm:gap-1.5 md:gap-2 flex-1 sm:flex-initial justify-center sm:justify-start border-sky-500 text-sky-600">
       <i class="bi bi-clock-history text-sm sm:text-sm md:text-base"></i>
       <span class="hidden sm:inline">Aguardando Liberação</span>
       <span class="sm:hidden">Aguardando</span>
-      <span class="bg-sky-100 text-sky-600 text-xs sm:text-xs font-medium px-1 sm:px-1.5 md:px-2 py-0.5 rounded-full ml-0.5">{{ pendentes.count }}</span>
+      <span
+        class="bg-sky-100 text-sky-600 text-xs sm:text-xs font-medium px-1 sm:px-1.5 md:px-2 py-0.5 rounded-full ml-0.5"
+        id="badge-pendentes" data-badge="pendentes">{{ total_pendentes }}</span>
     </button>
-    <button id="tab-confirmados" class="tab-button py-2 md:py-3 px-1 sm:px-2 md:px-1 border-b-2 font-medium text-sm sm:text-xs md:text-sm flex items-center gap-1 sm:gap-1.5 md:gap-2 flex-1 sm:flex-initial justify-center sm:justify-start border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
+    <button id="tab-confirmados"
+      class="tab-button py-2 md:py-3 px-1 sm:px-2 md:px-1 border-b-2 font-medium text-sm sm:text-xs md:text-sm flex items-center gap-1 sm:gap-1.5 md:gap-2 flex-1 sm:flex-initial justify-center sm:justify-start border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
       <i class="bi bi-check-circle text-sm sm:text-sm md:text-base"></i>
       <span class="hidden sm:inline">Liberados</span>
       <span class="sm:hidden">Liberados</span>
-      <span class="bg-gray-100 text-gray-600 text-xs sm:text-xs font-medium px-1 sm:px-1.5 md:px-2 py-0.5 rounded-full ml-0.5">{{ concluidos.count }}</span>
+      <span
+        class="bg-gray-100 text-gray-600 text-xs sm:text-xs font-medium px-1 sm:px-1.5 md:px-2 py-0.5 rounded-full ml-0.5"
+        id="badge-confirmados" data-badge="concluidos">{{ total_concluidos }}</span>
     </button>
   </nav>
 </div>
@@ -35,7 +41,7 @@
 <div class="mb-3 md:mb-4">
   <div class="relative">
     <input type="text" id="pesquisa-onda" placeholder="Pesquisar por motorista, placa, transportadora..."
-           class="w-full px-4 py-2 pl-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 text-sm">
+      class="w-full px-4 py-2 pl-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 text-sm">
     <i class="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
   </div>
 </div>
@@ -47,7 +53,8 @@
       <span class="text-sm font-medium text-sky-700" id="texto-selecionados">0 veículo(s) selecionado(s)</span>
     </div>
     <div class="flex gap-2">
-      <button onclick="liberarOndaSelecionados()" class="flex items-center gap-2 bg-sky-600 hover:bg-sky-700 text-white text-sm px-4 py-2 rounded-md transition-colors duration-200">
+      <button onclick="liberarOndaSelecionados()"
+        class="flex items-center gap-2 bg-sky-600 hover:bg-sky-700 text-white text-sm px-4 py-2 rounded-md transition-colors duration-200">
         Liberar Onda
       </button>
     </div>
@@ -55,271 +62,11 @@
 </div>
 
 <!-- Aba: Aguardando Liberação -->
-<div id="conteudo-pendentes" class="tab-content">
-  <!-- Desktop: Tabela -->
-  <div class="hidden md:block bg-white rounded-md overflow-hidden shadow-sm border border-gray-200">
-    <table class="min-w-full text-[14px]">
-      <thead>
-        <tr class="text-gray-800 text-xs border-b border-gray-200 uppercase tracking-wide">
-          <th class="py-2 px-3 text-left font-medium w-8">
-            <input type="checkbox" id="selecionar-todos" class="rounded border-gray-300 text-sky-600 focus:ring-sky-500">
-          </th>
-          <th class="py-2 px-3 text-left font-medium">Motorista</th>
-          <th class="py-2 px-3 text-left font-medium">Transportadora</th>
-          <th class="py-2 px-3 text-left font-medium">Placa</th>
-          <th class="py-2 px-3 text-left font-medium">Agendamento</th>
-          <th class="py-2 px-3 text-left font-medium">Documentos</th>
-          <th class="py-2 px-3 text-left font-medium">Status</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for ag in pendentes %}
-        <tr class="border-b border-gray-100 hover:bg-gray-50 agendamento-row" id="ag-{{ ag.id }}"
-            data-motorista="{{ ag.motorista.nome|lower }}" 
-            data-placa="{{ ag.placa_veiculo|lower }}" 
-            data-transportadora="{{ ag.transportadora.nome|lower }}">
-          <td class="py-2 px-3">
-            <input type="checkbox" class="ag-checkbox rounded border-gray-300 text-sky-600 focus:ring-sky-500" value="{{ ag.id }}">
-          </td>
-          <td class="py-2 px-3 font-medium text-gray-900">
-            <div class="flex items-center gap-2">
-              <span class="w-1.5 h-1.5 bg-sky-600 rounded-full"></span>
-              {{ ag.motorista.nome }}
-            </div>
-          </td>
-          <td class="py-2 px-3">{{ ag.transportadora.nome }}</td>
-          <td class="py-2 px-3 font-mono text-gray-800">{{ ag.placa_veiculo }}</td>
-          <td class="py-2 px-3 text-xs text-gray-600">
-            {{ ag.data_agendada|date:"d/m/Y" }} às 
-            {% if ag.horario_agendado|time:"H:i" == "00:00" %}
-              <span class="px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">ENCAIXE</span>
-            {% else %}
-              {{ ag.horario_agendado|time:"H:i" }}
-            {% endif %}
-          </td>
-          <td class="py-2 px-3 text-xs text-gray-600">
-            {% if ag.coluna_ad %}
-              <span class="truncate max-w-xs block" title="{{ ag.coluna_ad }}">{{ ag.coluna_ad|truncatewords:10 }}</span>
-            {% else %}
-              <span class="text-gray-400">—</span>
-            {% endif %}
-          </td>
-          <td class="py-2 px-3 text-xs">
-            {% if ag.status_geral == 'processo_concluido' %}
-              <span class="inline-flex px-1.5 py-0.5 rounded-full text-emerald-700 bg-emerald-50 text-xs border border-emerald-100">Concluído</span>
-            {% elif ag.status_geral == 'pendente_liberacao_onda' %}
-              <span class="inline-flex px-1.5 py-0.5 rounded-full text-sky-700 bg-sky-50 text-xs border border-sky-100">Pendente Onda</span>
-            {% elif ag.status_geral == 'confirmacao_armazem' %}
-              <span class="inline-flex px-1.5 py-0.5 rounded-full text-blue-700 bg-blue-50 text-xs border border-blue-100">Armazém</span>
-            {% elif ag.status_geral == 'em_checklist' %}
-              <span class="inline-flex px-1.5 py-0.5 rounded-full text-yellow-700 bg-yellow-50 text-xs border border-yellow-100">CheckList</span>
-            {% else %}
-              <span class="inline-flex px-1.5 py-0.5 rounded-full text-gray-700 bg-gray-50 text-xs border border-gray-100">Aguardando</span>
-            {% endif %}
-          </td>
-        </tr>
-        {% empty %}
-        <tr><td colspan="7" class="py-8 text-center text-gray-400">Nenhum veículo aguardando liberação</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-
-  <!-- Mobile: Cards -->
-  <div class="md:hidden space-y-2.5">
-    {% for ag in pendentes %}
-    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-2.5 agendamento-row" id="ag-card-{{ ag.id }}"
-         data-motorista="{{ ag.motorista.nome|lower }}" 
-         data-placa="{{ ag.placa_veiculo|lower }}" 
-         data-transportadora="{{ ag.transportadora.nome|lower }}">
-      <div class="mb-3">
-        <div class="flex items-center gap-2 mb-2">
-          <span class="w-1.5 h-1.5 bg-sky-600 rounded-full"></span>
-          <h3 class="font-semibold text-gray-900 text-sm">{{ ag.motorista.nome }}</h3>
-        </div>
-        <div class="space-y-1 text-xs text-gray-600">
-          <div class="flex items-center gap-1.5">
-            <i class="bi bi-building text-gray-400 text-xs"></i>
-            <span class="truncate">{{ ag.transportadora.nome }}</span>
-          </div>
-          <div class="flex items-center gap-1.5">
-            <i class="bi bi-truck text-gray-400 text-xs"></i>
-            <span class="font-mono">{{ ag.placa_veiculo }}</span>
-          </div>
-          <div class="flex items-center gap-1.5">
-            <i class="bi bi-calendar text-gray-400 text-xs"></i>
-            <span>{{ ag.data_agendada|date:"d/m/Y" }} às 
-              {% if ag.horario_agendado|time:"H:i" == "00:00" %}
-                <span class="px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">ENCAIXE</span>
-              {% else %}
-                {{ ag.horario_agendado|time:"H:i" }}
-              {% endif %}
-            </span>
-          </div>
-          <div class="flex items-start gap-1.5">
-            <i class="bi bi-file-text text-gray-400 text-xs mt-0.5"></i>
-            <span class="flex-1">
-              {% if ag.coluna_ad %}
-                {{ ag.coluna_ad|truncatewords:15 }}
-              {% else %}
-                <span class="text-gray-400">—</span>
-              {% endif %}
-            </span>
-          </div>
-          <div class="flex items-center gap-1.5">
-            <i class="bi bi-info-circle text-gray-400 text-xs"></i>
-            <span>
-              {% if ag.status_geral == 'processo_concluido' %}
-                <span class="text-emerald-600">Concluído</span>
-              {% elif ag.status_geral == 'pendente_liberacao_onda' %}
-                <span class="text-sky-600">Pendente Onda</span>
-              {% elif ag.status_geral == 'confirmacao_armazem' %}
-                <span class="text-blue-600">Armazém</span>
-              {% elif ag.status_geral == 'em_checklist' %}
-                <span class="text-yellow-600">CheckList</span>
-              {% else %}
-                <span class="text-gray-600">Aguardando</span>
-              {% endif %}
-            </span>
-          </div>
-        </div>
-      </div>
-      <button onclick="liberarOndaIndividual('{{ ag.id }}')" class="w-full flex items-center justify-center gap-2 bg-sky-600 hover:bg-sky-700 text-white text-xs px-3 py-2.5 rounded-md transition-colors">
-        <i class="bi bi-check-lg"></i>
-        <span>Liberar Onda</span>
-      </button>
-    </div>
-    {% empty %}
-    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
-      <p class="text-gray-400 text-sm">Nenhum veículo aguardando liberação</p>
-    </div>
-    {% endfor %}
-  </div>
-</div>
-
-<!-- Aba: Liberados -->
-<div id="conteudo-confirmados" class="tab-content hidden">
-  <!-- Desktop: Tabela -->
-  <div class="hidden md:block bg-white rounded-md overflow-hidden shadow-sm border border-gray-200">
-    <table class="min-w-full text-[14px]">
-      <thead>
-        <tr class="text-gray-800 text-xs border-b border-gray-200 uppercase tracking-wide">
-          <th class="py-2 px-3 text-left font-medium">Motorista</th>
-          <th class="py-2 px-3 text-left font-medium">Transportadora</th>
-          <th class="py-2 px-3 text-left font-medium">Placa</th>
-          <th class="py-2 px-3 text-left font-medium">Agendamento</th>
-          <th class="py-2 px-3 text-left font-medium">Documentos</th>
-          <th class="py-2 px-3 text-left font-medium">Liberação Onda</th>
-          <th class="py-2 px-3 text-left font-medium">Liberado por</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for ag in concluidos %}
-        <tr class="border-b border-gray-100 hover:bg-gray-50 confirmado-row"
-            data-motorista="{{ ag.motorista.nome|lower }}" 
-            data-placa="{{ ag.placa_veiculo|lower }}" 
-            data-transportadora="{{ ag.transportadora.nome|lower }}">
-          <td class="py-2 px-3 font-medium text-gray-900">
-            <div class="flex items-center gap-2">
-              <span class="w-1.5 h-1.5 bg-emerald-600 rounded-full"></span>
-              {{ ag.motorista.nome }}
-            </div>
-          </td>
-          <td class="py-2 px-3">{{ ag.transportadora.nome }}</td>
-          <td class="py-2 px-3 font-mono">{{ ag.placa_veiculo }}</td>
-          <td class="py-2 px-3 text-xs text-gray-600">
-            {{ ag.data_agendada|date:"d/m/Y" }} às 
-            {% if ag.horario_agendado|time:"H:i" == "00:00" %}
-              <span class="px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">ENCAIXE</span>
-            {% else %}
-              {{ ag.horario_agendado|time:"H:i" }}
-            {% endif %}
-          </td>
-          <td class="py-2 px-3 text-xs text-gray-600">
-            {% if ag.coluna_ad %}
-              <span class="truncate max-w-xs block" title="{{ ag.coluna_ad }}">{{ ag.coluna_ad|truncatewords:10 }}</span>
-            {% else %}
-              <span class="text-gray-400">—</span>
-            {% endif %}
-          </td>
-          <td class="py-2 px-3 text-sky-600">
-            {% timezone "America/Cuiaba" %}
-              {{ ag.onda_liberacao|date:"d/m H:i" }}
-            {% endtimezone %}
-          </td>
-          <td class="py-2 px-3 text-xs text-gray-600">{{ ag.onda_liberado_por.get_full_name|default:"—" }}</td>
-        </tr>
-        {% empty %}
-        <tr><td colspan="7" class="py-8 text-center text-gray-400">Nenhum veículo liberado hoje</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-
-  <!-- Mobile: Cards -->
-  <div class="md:hidden space-y-2.5">
-    {% for ag in concluidos %}
-    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-2.5 confirmado-row"
-         data-motorista="{{ ag.motorista.nome|lower }}" 
-         data-placa="{{ ag.placa_veiculo|lower }}" 
-         data-transportadora="{{ ag.transportadora.nome|lower }}">
-      <div class="flex items-center gap-2 mb-2">
-        <span class="w-1.5 h-1.5 bg-emerald-600 rounded-full"></span>
-        <h3 class="font-semibold text-gray-900 text-sm">{{ ag.motorista.nome }}</h3>
-      </div>
-      <div class="space-y-1 text-xs text-gray-600">
-        <div class="flex items-center gap-1.5">
-          <i class="bi bi-building text-gray-400 text-xs"></i>
-          <span class="truncate">{{ ag.transportadora.nome }}</span>
-        </div>
-        <div class="flex items-center gap-1.5">
-          <i class="bi bi-truck text-gray-400 text-xs"></i>
-          <span class="font-mono">{{ ag.placa_veiculo }}</span>
-        </div>
-        <div class="flex items-center gap-1.5">
-          <i class="bi bi-calendar text-gray-400 text-xs"></i>
-          <span>{{ ag.data_agendada|date:"d/m/Y" }} às 
-            {% if ag.horario_agendado|time:"H:i" == "00:00" %}
-              <span class="px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">ENCAIXE</span>
-            {% else %}
-              {{ ag.horario_agendado|time:"H:i" }}
-            {% endif %}
-          </span>
-        </div>
-        <div class="flex items-start gap-1.5">
-          <i class="bi bi-file-text text-gray-400 text-xs mt-0.5"></i>
-          <span class="flex-1">
-            {% if ag.coluna_ad %}
-              {{ ag.coluna_ad|truncatewords:15 }}
-            {% else %}
-              <span class="text-gray-400">—</span>
-            {% endif %}
-          </span>
-        </div>
-        <div class="flex items-center gap-1.5">
-          <i class="bi bi-check-circle text-sky-600 text-xs"></i>
-          <span class="text-sky-600 font-medium">
-            {% timezone "America/Cuiaba" %}
-              Liberação: {{ ag.onda_liberacao|date:"d/m H:i" }}
-            {% endtimezone %}
-          </span>
-        </div>
-        <div class="flex items-center gap-1.5">
-          <i class="bi bi-person-check text-gray-400 text-xs"></i>
-          <span class="text-gray-600">{{ ag.onda_liberado_por.get_full_name|default:"—" }}</span>
-        </div>
-      </div>
-    </div>
-    {% empty %}
-    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
-      <p class="text-gray-400 text-sm">Nenhum veículo liberado hoje</p>
-    </div>
-    {% endfor %}
-  </div>
-</div>
+{% include 'partials/_tabela_onda.html' %}
 
 <!-- Modal de Confirmação -->
-<div id="modal-formulario" class="hidden fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-[60] p-2 md:p-4">
+<div id="modal-formulario"
+  class="hidden fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-[60] p-2 md:p-4">
   <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[95vh] overflow-y-auto">
     <div class="flex justify-between items-center p-4 md:p-6 border-b border-gray-200 sticky top-0 bg-white z-10">
       <h3 id="titulo-modal" class="text-lg md:text-xl font-semibold text-gray-900">Liberar Onda</h3>
@@ -333,18 +80,22 @@
 
       <div class="swipe-container mb-6 md:mb-8">
         <div class="swipe-track bg-gray-100 rounded-full h-10 md:h-12 relative overflow-hidden border border-gray-300">
-          <div class="swipe-thumb absolute left-1 top-1 h-8 w-8 md:h-10 md:w-10 bg-white rounded-full flex items-center justify-center cursor-grab active:cursor-grabbing shadow-md border border-gray-200 z-10">
+          <div
+            class="swipe-thumb absolute left-1 top-1 h-8 w-8 md:h-10 md:w-10 bg-white rounded-full flex items-center justify-center cursor-grab active:cursor-grabbing shadow-md border border-gray-200 z-10">
             <i class="bi bi-arrow-right text-sky-600 text-base md:text-lg"></i>
           </div>
           <div class="swipe-text absolute inset-0 flex items-center justify-center">
             <span class="text-gray-500 font-medium text-xs md:text-sm">Deslize para liberar</span>
           </div>
-          <div class="swipe-progress absolute inset-0 bg-gradient-to-r from-sky-500 to-sky-600 rounded-full scale-x-0 origin-left"></div>
+          <div
+            class="swipe-progress absolute inset-0 bg-gradient-to-r from-sky-500 to-sky-600 rounded-full scale-x-0 origin-left">
+          </div>
         </div>
       </div>
 
       <div class="bg-gray-50 p-3 md:p-4 rounded-lg mb-3 md:mb-4">
-        <label class="block text-xs md:text-sm font-medium text-gray-500 mb-2">Horário de Liberação (Rondonópolis)</label>
+        <label class="block text-xs md:text-sm font-medium text-gray-500 mb-2">Horário de Liberação
+          (Rondonópolis)</label>
         <div class="w-full px-2 md:px-3 py-3 md:py-4 border-2 border-sky-500 rounded-md bg-white text-center">
           <div id="confirmacao-horario" class="text-gray-900 text-2xl md:text-3xl font-bold font-mono tracking-wider">
             {{ agora|date:'H:i:s' }}
@@ -355,14 +106,30 @@
       </div>
 
       <!-- Detalhes do agendamento (só aparece quando houver apenas 1 selecionado) -->
-      <div id="detalhes-agendamento" class="hidden grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 text-xs md:text-sm bg-sky-50 p-3 md:p-4 rounded-lg border border-sky-100">
-        <div><p class="font-medium text-gray-500 mb-1">Motorista</p><p id="confirmacao-motorista" class="text-gray-900 font-medium"></p></div>
-        <div><p class="font-medium text-gray-500 mb-1">Placa do Veículo</p><p id="confirmacao-placa" class="font-mono text-gray-900 font-medium"></p></div>
-        <div><p class="font-medium text-gray-500 mb-1">Transportadora</p><p id="confirmacao-transportadora" class="text-gray-900 font-medium"></p></div>
-        <div><p class="font-medium text-gray-500 mb-1">Agendamento</p><p id="confirmacao-agendamento" class="text-gray-900 font-medium"></p></div>
-        <div class="md:col-span-2"><p class="font-medium text-gray-500 mb-1">Documentos</p><p id="confirmacao-documentos" class="text-gray-900 font-medium break-words"></p></div>
+      <div id="detalhes-agendamento"
+        class="hidden grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 text-xs md:text-sm bg-sky-50 p-3 md:p-4 rounded-lg border border-sky-100">
+        <div>
+          <p class="font-medium text-gray-500 mb-1">Motorista</p>
+          <p id="confirmacao-motorista" class="text-gray-900 font-medium"></p>
+        </div>
+        <div>
+          <p class="font-medium text-gray-500 mb-1">Placa do Veículo</p>
+          <p id="confirmacao-placa" class="font-mono text-gray-900 font-medium"></p>
+        </div>
+        <div>
+          <p class="font-medium text-gray-500 mb-1">Transportadora</p>
+          <p id="confirmacao-transportadora" class="text-gray-900 font-medium"></p>
+        </div>
+        <div>
+          <p class="font-medium text-gray-500 mb-1">Agendamento</p>
+          <p id="confirmacao-agendamento" class="text-gray-900 font-medium"></p>
+        </div>
+        <div class="md:col-span-2">
+          <p class="font-medium text-gray-500 mb-1">Documentos</p>
+          <p id="confirmacao-documentos" class="text-gray-900 font-medium break-words"></p>
+        </div>
       </div>
-      
+
       <!-- Mensagem quando houver múltiplos selecionados -->
       <div id="mensagem-multiplos" class="hidden bg-blue-50 p-3 md:p-4 rounded-lg border border-blue-100 text-center">
         <p class="text-sm font-medium text-blue-800">
@@ -375,7 +142,8 @@
 </div>
 
 <!-- Loading Overlay -->
-<div id="loadingOverlay" class="hidden fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-[10000] backdrop-blur-sm">
+<div id="loadingOverlay"
+  class="hidden fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-[10000] backdrop-blur-sm">
   <div class="bg-white p-6 rounded-xl shadow-xl flex flex-col items-center min-w-[300px]">
     <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-sky-600 mb-4"></div>
     <p class="text-gray-700 font-medium">Processando...</p>
@@ -383,916 +151,538 @@
 </div>
 
 <style>
-/* Estilos similares ao armazém, com cores azuis */
-.swipe-container { user-select: none; -webkit-user-select: none; touch-action: pan-y; }
-.swipe-track { position: relative; background: #f8fafc; transition: all 0.3s ease; }
-.swipe-track.success { background: #f0f9ff; border-color: #0ea5e9; }
-.swipe-thumb { transition: transform 0.15s ease, box-shadow 0.15s ease; z-index: 10; }
-.swipe-thumb.dragging { transform: scale(1.05); box-shadow: 0 4px 12px rgba(14, 165, 233, 0.25); }
-.swipe-thumb.success { background: #10b981; }
-.swipe-thumb.success i { color: white; }
-.swipe-text { transition: all 0.3s ease; z-index: 5; }
-.swipe-progress { transition: transform 0.3s ease; z-index: 1; }
+  /* Estilos similares ao armazém, com cores azuis */
+  .swipe-container {
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: pan-y;
+  }
 
-.toast { position: fixed; top: 20px; right: 20px; padding: 16px 20px; border-radius: 8px; color: white; font-weight: 500; z-index: 10000; box-shadow: 0 4px 12px rgba(0,0,0,0.15); transform: translateX(400px); transition: transform 0.3s ease; }
-.toast.show { transform: translateX(0); }
-.toast.success { background-color: #10b981; }
-.toast.error { background-color: #ef4444; }
+  .swipe-track {
+    position: relative;
+    background: #f8fafc;
+    transition: all 0.3s ease;
+  }
 
-/* Estilos mobile */
-@media (max-width: 768px) {
-  main {
-    padding-left: 0.75rem !important;
-    padding-right: 0.75rem !important;
-    padding-top: 0.75rem !important;
+  .swipe-track.success {
+    background: #f0f9ff;
+    border-color: #0ea5e9;
   }
-  
-  .tab-content > div.space-y-2,
-  .tab-content > div.space-y-3,
-  .tab-content > div.space-y-4 {
-    gap: 0.625rem !important;
+
+  .swipe-thumb {
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    z-index: 10;
   }
-  
-  .tab-content .bg-white.rounded-lg.shadow-sm {
-    padding: 0.875rem !important;
+
+  .swipe-thumb.dragging {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(14, 165, 233, 0.25);
   }
-  
-  .flex.flex-col.md\\:flex-row.items-start.justify-between {
-    margin-bottom: 0.75rem !important;
+
+  .swipe-thumb.success {
+    background: #10b981;
   }
-  
-  .mb-4.border-b.border-gray-200,
-  .mb-2.md\\:mb-4.border-b {
-    margin-bottom: 0.75rem !important;
+
+  .swipe-thumb.success i {
+    color: white;
   }
-  
-  #barra-pesquisa-onda {
-    margin-bottom: 0.75rem !important;
+
+  .swipe-text {
+    transition: all 0.3s ease;
+    z-index: 5;
   }
-  
-  .tab-content .text-xs {
-    font-size: 0.8125rem !important;
+
+  .swipe-progress {
+    transition: transform 0.3s ease;
+    z-index: 1;
   }
-  
-  .tab-content .text-sm {
-    font-size: 0.9375rem !important;
-  }
-  
-  .tab-content h3 {
-    font-size: 1.0625rem !important;
-  }
-  
-  .tab-content .bi {
-    font-size: 1.0625rem !important;
-  }
-  
-  .tab-button {
-    font-size: 0.9375rem !important;
-  }
-  
-  .tab-button span:not(.bg-sky-100):not(.bg-gray-100) {
-    font-size: 0.9375rem !important;
-  }
-  
-  .tab-button .bi {
-    font-size: 1rem !important;
-  }
-  
+
   .toast {
-    top: 10px;
-    right: 10px;
-    left: 10px;
-    padding: 12px 16px;
-    font-size: 14px;
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 16px 20px;
+    border-radius: 8px;
+    color: white;
+    font-weight: 500;
+    z-index: 10000;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transform: translateX(400px);
+    transition: transform 0.3s ease;
   }
-  
-  #modal-formulario > div {
-    margin: 0.5rem !important;
-    max-height: calc(100vh - 1rem);
+
+  .toast.show {
+    transform: translateX(0);
   }
-  
-  .tab-content button {
-    touch-action: manipulation;
-    -webkit-tap-highlight-color: transparent;
+
+  .toast.success {
+    background-color: #10b981;
   }
-}
+
+  .toast.error {
+    background-color: #ef4444;
+  }
+
+  /* Estilos mobile */
+  @media (max-width: 768px) {
+    main {
+      padding-left: 0.75rem !important;
+      padding-right: 0.75rem !important;
+      padding-top: 0.75rem !important;
+    }
+
+    .tab-content>div.space-y-2,
+    .tab-content>div.space-y-3,
+    .tab-content>div.space-y-4 {
+      gap: 0.625rem !important;
+    }
+
+    .tab-content .bg-white.rounded-lg.shadow-sm {
+      padding: 0.875rem !important;
+    }
+
+    .flex.flex-col.md\\:flex-row.items-start.justify-between {
+      margin-bottom: 0.75rem !important;
+    }
+
+    .mb-4.border-b.border-gray-200,
+    .mb-2.md\\:mb-4.border-b {
+      margin-bottom: 0.75rem !important;
+    }
+
+    #barra-pesquisa-onda {
+      margin-bottom: 0.75rem !important;
+    }
+
+    .tab-content .text-xs {
+      font-size: 0.8125rem !important;
+    }
+
+    .tab-content .text-sm {
+      font-size: 0.9375rem !important;
+    }
+
+    .tab-content h3 {
+      font-size: 1.0625rem !important;
+    }
+
+    .tab-content .bi {
+      font-size: 1.0625rem !important;
+    }
+
+    .tab-button {
+      font-size: 0.9375rem !important;
+    }
+
+    .tab-button span:not(.bg-sky-100):not(.bg-gray-100) {
+      font-size: 0.9375rem !important;
+    }
+
+    .tab-button .bi {
+      font-size: 1rem !important;
+    }
+
+    .toast {
+      top: 10px;
+      right: 10px;
+      left: 10px;
+      padding: 12px 16px;
+      font-size: 14px;
+    }
+
+    #modal-formulario>div {
+      margin: 0.5rem !important;
+      max-height: calc(100vh - 1rem);
+    }
+
+    .tab-content button {
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+    }
+  }
 </style>
 
 <script>
-let agendamentosSelecionados = new Set();
-let isDragging = false, startX = 0, currentX = 0, trackWidth = 0, thumbWidth = 0;
+  let agendamentosSelecionados = new Set();
+  let isDragging = false, startX = 0, currentX = 0, trackWidth = 0, thumbWidth = 0;
 
-function mostrarToast(m, t = 'success') {
-  const toast = document.createElement('div');
-  toast.className = `toast ${t} show`;
-  toast.innerHTML = `<div class="flex items-center gap-2"><i class="bi ${t==='success'?'bi-check-circle':'bi-x-circle'}"></i><span>${m}</span></div>`;
-  document.body.appendChild(toast);
-  setTimeout(() => toast.remove(), 5000);
-}
-
-function alternarAba(aba) {
-  document.querySelectorAll('.tab-button').forEach(b => {
-    b.classList.remove('border-sky-500', 'text-sky-600');
-    b.classList.add('border-transparent', 'text-gray-500');
-    b.classList.remove('hover:border-sky-300');
-  });
-  
-  const abaAtiva = document.getElementById(`tab-${aba}`);
-  if (abaAtiva) {
-    abaAtiva.classList.remove('border-transparent', 'text-gray-500', 'hover:border-gray-300');
-    abaAtiva.classList.add('border-sky-500', 'text-sky-600');
+  function mostrarToast(m, t = 'success') {
+    const toast = document.createElement('div');
+    toast.className = `toast ${t} show`;
+    toast.innerHTML = `<div class="flex items-center gap-2"><i class="bi ${t === 'success' ? 'bi-check-circle' : 'bi-x-circle'}"></i><span>${m}</span></div>`;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 5000);
   }
-  
-  document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
-  document.getElementById(`conteudo-${aba}`).classList.remove('hidden');
-  limparSelecoes();
-  
-  // Garantir sincronização ao trocar de aba
-  setTimeout(() => {
-    // Remover IDs do Set que não existem mais nos checkboxes
-    const checkboxesExistentes = Array.from(document.querySelectorAll('.ag-checkbox')).map(cb => cb.value);
-    agendamentosSelecionados.forEach(id => {
-      if (!checkboxesExistentes.includes(id)) {
-        agendamentosSelecionados.delete(id);
-      }
+
+  function alternarAba(aba) {
+    document.querySelectorAll('.tab-button').forEach(b => {
+      b.classList.remove('border-sky-500', 'text-sky-600');
+      b.classList.add('border-transparent', 'text-gray-500');
+      b.classList.remove('hover:border-sky-300');
     });
-    atualizarContainerAcoes();
-  }, 100);
-  
-  const pesquisaInput = document.getElementById('pesquisa-onda');
-  if (pesquisaInput && pesquisaInput.value) {
-    filtrarOnda(pesquisaInput.value);
-  }
-}
 
-function atualizarContainerAcoes() {
-  const c = document.getElementById('container-acoes');
-  const t = document.getElementById('texto-selecionados');
-  const isDesktop = window.innerWidth >= 768;
-  if (agendamentosSelecionados.size > 0 && isDesktop) {
-    c.classList.remove('hidden');
-    t.textContent = `${agendamentosSelecionados.size} veículo(s) selecionado(s)`;
-  } else {
-    c.classList.add('hidden');
-  }
-}
-
-// Função para lidar com mudanças nos checkboxes da liberação de onda
-function handleCheckboxChangeOnda(event) {
-  if (event.target.classList.contains('ag-checkbox')) {
-    event.target.checked ? agendamentosSelecionados.add(event.target.value) : agendamentosSelecionados.delete(event.target.value);
-    if (!event.target.checked) {
-      const selecionarTodos = document.getElementById('selecionar-todos');
-      if (selecionarTodos) selecionarTodos.checked = false;
+    const abaAtiva = document.getElementById(`tab-${aba}`);
+    if (abaAtiva) {
+      abaAtiva.classList.remove('border-transparent', 'text-gray-500', 'hover:border-gray-300');
+      abaAtiva.classList.add('border-sky-500', 'text-sky-600');
     }
-    atualizarContainerAcoes();
-  }
-}
 
-function limparSelecoes() {
-  agendamentosSelecionados.clear();
-  document.querySelectorAll('.ag-checkbox, #selecionar-todos').forEach(c => c.checked = false);
-  atualizarContainerAcoes();
-  
-  // Garantir sincronização após limpar
-  setTimeout(() => {
-    // Remover IDs do Set que não existem mais nos checkboxes
-    const checkboxesExistentes = Array.from(document.querySelectorAll('.ag-checkbox')).map(cb => cb.value);
-    agendamentosSelecionados.forEach(id => {
-      if (!checkboxesExistentes.includes(id)) {
-        agendamentosSelecionados.delete(id);
-      }
-    });
-    atualizarContainerAcoes();
-  }, 100);
-}
-
-function liberarOndaIndividual(id) {
-  agendamentosSelecionados.clear();
-  agendamentosSelecionados.add(id);
-  liberarOndaSelecionados();
-}
-
-function liberarOndaSelecionados() {
-  if (agendamentosSelecionados.size === 0) return mostrarToast('Selecione pelo menos um veículo', 'error');
-  
-  const modalAnterior = document.getElementById('modal-formulario');
-  if (modalAnterior && !modalAnterior.classList.contains('hidden')) {
-    fecharModal();
-    setTimeout(() => {
-      abrirModalOnda();
-    }, 100);
-  } else {
-    abrirModalOnda();
-  }
-}
-
-function abrirModalOnda() {
-  if (agendamentosSelecionados.size === 0) return mostrarToast('Selecione pelo menos um veículo', 'error');
-  
-  const quantidade = agendamentosSelecionados.size;
-  const detalhesDiv = document.getElementById('detalhes-agendamento');
-  const mensagemMultiplos = document.getElementById('mensagem-multiplos');
-  const quantidadeSpan = document.getElementById('quantidade-selecionados');
-  
-  // Se tiver apenas 1 selecionado, mostrar detalhes
-  if (quantidade === 1) {
-    const id = Array.from(agendamentosSelecionados)[0];
-    fetch(`/rondonopolis/portaria/detalhes/?id=${id}`)
-      .then(r => r.json())
-      .then(d => {
-        if (d.success) {
-          document.getElementById('titulo-modal').textContent = 'Liberar Onda';
-          document.getElementById('confirmacao-motorista').textContent = d.agendamento.motorista;
-          document.getElementById('confirmacao-placa').textContent = d.agendamento.placa_veiculo;
-          document.getElementById('confirmacao-transportadora').textContent = d.agendamento.transportadora;
-          const horarioTexto = d.agendamento.horario_agendado === '00:00' ? 'ENCAIXE' : d.agendamento.horario_agendado;
-          document.getElementById('confirmacao-agendamento').textContent = d.agendamento.data_agendada + ' às ' + horarioTexto;
-          document.getElementById('confirmacao-documentos').textContent = d.agendamento.coluna_ad || '—';
-          
-          // Mostrar detalhes e esconder mensagem de múltiplos
-          detalhesDiv.classList.remove('hidden');
-          mensagemMultiplos.classList.add('hidden');
-          
-          const modal = document.getElementById('modal-formulario');
-          modal.classList.remove('hidden');
-          
-          limparEventListenersSwipe();
-          resetarSwipeButton();
-          setTimeout(inicializarSwipeButton, 150);
-        }
-      });
-  } else {
-    // Se tiver múltiplos, não mostrar detalhes
-    document.getElementById('titulo-modal').textContent = `Liberar Onda (${quantidade} veículos)`;
-    quantidadeSpan.textContent = quantidade;
-    
-    // Esconder detalhes e mostrar mensagem de múltiplos
-    detalhesDiv.classList.add('hidden');
-    mensagemMultiplos.classList.remove('hidden');
-    
-    const modal = document.getElementById('modal-formulario');
-    modal.classList.remove('hidden');
-    
-    limparEventListenersSwipe();
-    resetarSwipeButton();
-    setTimeout(inicializarSwipeButton, 150);
-  }
-}
-
-function filtrarOnda(termo) {
-  const termoLower = termo.toLowerCase().trim();
-  
-  const conteudoPendentes = document.getElementById('conteudo-pendentes');
-  const conteudoConfirmados = document.getElementById('conteudo-confirmados');
-  const pendentesAtivo = conteudoPendentes && !conteudoPendentes.classList.contains('hidden');
-  const confirmadosAtivo = conteudoConfirmados && !conteudoConfirmados.classList.contains('hidden');
-  
-  if (pendentesAtivo) {
-    const pendentesRows = conteudoPendentes.querySelectorAll('.agendamento-row');
-    pendentesRows.forEach(row => {
-      const motorista = row.getAttribute('data-motorista') || '';
-      const placa = row.getAttribute('data-placa') || '';
-      const transportadora = row.getAttribute('data-transportadora') || '';
-      
-      if (termoLower === '' || motorista.includes(termoLower) || placa.includes(termoLower) || transportadora.includes(termoLower)) {
-        row.style.display = '';
-      } else {
-        row.style.display = 'none';
-      }
-    });
-  }
-  
-  if (confirmadosAtivo) {
-    const confirmadosRows = conteudoConfirmados.querySelectorAll('.confirmado-row');
-    confirmadosRows.forEach(row => {
-      const motorista = row.getAttribute('data-motorista') || '';
-      const placa = row.getAttribute('data-placa') || '';
-      const transportadora = row.getAttribute('data-transportadora') || '';
-      
-      if (termoLower === '' || motorista.includes(termoLower) || placa.includes(termoLower) || transportadora.includes(termoLower)) {
-        row.style.display = '';
-      } else {
-        row.style.display = 'none';
-      }
-    });
-  }
-}
-
-let swipeMouseMoveHandlerOnda = null;
-let swipeMouseUpHandlerOnda = null;
-let swipeTouchMoveHandlerOnda = null;
-let swipeTouchEndHandlerOnda = null;
-
-function limparEventListenersSwipe() {
-  if (swipeMouseMoveHandlerOnda) {
-    document.removeEventListener('mousemove', swipeMouseMoveHandlerOnda);
-    swipeMouseMoveHandlerOnda = null;
-  }
-  if (swipeMouseUpHandlerOnda) {
-    document.removeEventListener('mouseup', swipeMouseUpHandlerOnda);
-    swipeMouseUpHandlerOnda = null;
-  }
-  if (swipeTouchMoveHandlerOnda) {
-    document.removeEventListener('touchmove', swipeTouchMoveHandlerOnda);
-    swipeTouchMoveHandlerOnda = null;
-  }
-  if (swipeTouchEndHandlerOnda) {
-    document.removeEventListener('touchend', swipeTouchEndHandlerOnda);
-    swipeTouchEndHandlerOnda = null;
-  }
-}
-
-function inicializarSwipeButton() {
-  const track = document.querySelector('.swipe-track');
-  const thumb = document.querySelector('.swipe-thumb');
-  if (!track || !thumb) return;
-  
-  limparEventListenersSwipe();
-  resetarSwipeButton();
-  trackWidth = track.offsetWidth; thumbWidth = thumb.offsetWidth;
-  const max = trackWidth - thumbWidth - 8;
-
-  const start = e => { isDragging = true; startX = (e.clientX || e.touches[0].clientX) - thumb.getBoundingClientRect().left; };
-  const move = e => {
-    if (!isDragging) return;
-    currentX = (e.clientX || e.touches[0].clientX) - track.getBoundingClientRect().left - startX;
-    currentX = Math.max(0, Math.min(currentX, max));
-    thumb.style.transform = `translateX(${currentX}px)`;
-    const p = currentX / max;
-    document.querySelector('.swipe-progress').style.transform = `scaleX(${p})`;
-    if (p > 0.7) {
-      track.classList.add('success');
-      document.querySelector('.swipe-text').innerHTML = '<span class="text-white font-medium">Solte para liberar</span>';
-    } else {
-      track.classList.remove('success');
-      document.querySelector('.swipe-text').innerHTML = '<span class="text-gray-500 font-medium">Deslize para liberar</span>';
-    }
-  };
-  const end = () => {
-    if (!isDragging) return;
-    isDragging = false;
-    if (currentX > max * 0.8) liberarOnda();
-    else resetarSwipeButton();
-  };
-  
-  swipeMouseMoveHandlerOnda = move;
-  swipeMouseUpHandlerOnda = end;
-  swipeTouchMoveHandlerOnda = move;
-  swipeTouchEndHandlerOnda = end;
-
-  thumb.addEventListener('mousedown', start);
-  thumb.addEventListener('touchstart', start);
-  
-  document.addEventListener('mousemove', move);
-  document.addEventListener('mouseup', end);
-  document.addEventListener('touchmove', move);
-  document.addEventListener('touchend', end);
-}
-
-function resetarSwipeButton() {
-  const thumb = document.querySelector('.swipe-thumb');
-  const track = document.querySelector('.swipe-track');
-  const prog = document.querySelector('.swipe-progress');
-  if (thumb) thumb.style.transform = 'translateX(0)';
-  track?.classList.remove('success');
-  prog && (prog.style.transform = 'scaleX(0)');
-  document.querySelector('.swipe-text').innerHTML = '<span class="text-gray-500 font-medium">Deslize para liberar</span>';
-}
-
-async function liberarOnda() {
-  if (agendamentosSelecionados.size === 0) {
-    mostrarToast('Selecione pelo menos um veículo', 'error');
-    return;
-  }
-  
-  mostrarLoading();
-  const fd = new FormData();
-  for (const id of agendamentosSelecionados) {
-    fd.append('ids[]', id);
-  }
-  fd.append('csrfmiddlewaretoken', '{{ csrf_token }}');
-
-  const r = await fetch('/rondonopolis/onda/registrar-liberacao/', { method: 'POST', body: fd });
-  const d = await r.json();
-  esconderLoading();
-  fecharModal();
-  if (d.success) {
-    mostrarToast('Onda liberada com sucesso!', 'success');
-    // Limpar seleção
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+    document.getElementById(`conteudo-${aba}`).classList.remove('hidden');
     limparSelecoes();
-    setTimeout(() => location.reload(), 1500);
-  } else {
-    mostrarToast(d.error || 'Erro ao liberar', 'error');
-  }
-}
 
-function fecharModal() {
-  const modal = document.getElementById('modal-formulario');
-  if (modal) {
-    modal.classList.add('hidden');
-    limparEventListenersSwipe();
-    resetarSwipeButton();
-    agendamentoSelecionado = null;
-    modal.removeAttribute('data-agendamento-id');
-    const form = modal.querySelector('form');
-    if (form) {
-      form.reset();
-    }
-  }
-}
-
-function mostrarLoading() { document.getElementById('loadingOverlay').classList.remove('hidden'); }
-function esconderLoading() { document.getElementById('loadingOverlay').classList.add('hidden'); }
-
-let offsetServidorOnda = 0;
-
-function atualizarRelogioOnda() {
-    const relogioElement = document.getElementById('confirmacao-horario');
-    const hiddenElement = document.getElementById('confirmacao-horario-hidden');
-    if (relogioElement) {
-        const agora = new Date(Date.now() + offsetServidorOnda);
-        const opcoes = { 
-            timeZone: 'America/Cuiaba',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            hour12: false
-        };
-        const horarioCompleto = agora.toLocaleTimeString('pt-BR', { ...opcoes, second: '2-digit' });
-        const horarioSemSegundos = agora.toLocaleTimeString('pt-BR', { ...opcoes });
-        relogioElement.textContent = horarioCompleto;
-        if (hiddenElement) {
-            hiddenElement.value = horarioSemSegundos;
+    // Garantir sincronização ao trocar de aba
+    setTimeout(() => {
+      // Remover IDs do Set que não existem mais nos checkboxes
+      const checkboxesExistentes = Array.from(document.querySelectorAll('.ag-checkbox')).map(cb => cb.value);
+      agendamentosSelecionados.forEach(id => {
+        if (!checkboxesExistentes.includes(id)) {
+          agendamentosSelecionados.delete(id);
         }
-    }
-}
-
-function sincronizarComServidorOnda() {
-    fetch('{% url "rondonopolis:obter_horario_atual" %}')
-        .then(r => r.json())
-        .then(d => {
-            if (d.success) {
-                const horarioServidor = new Date(d.timestamp);
-                const agoraCliente = new Date();
-                offsetServidorOnda = horarioServidor.getTime() - agoraCliente.getTime();
-                atualizarRelogioOnda();
-            }
-        })
-        .catch(() => {
-            atualizarRelogioOnda();
-        });
-}
-
-setInterval(atualizarRelogioOnda, 1000);
-setInterval(sincronizarComServidorOnda, 30000);
-sincronizarComServidorOnda();
-
-document.addEventListener('DOMContentLoaded', () => {
-    const modal = document.getElementById('modal-formulario');
-    if (modal) {
-        const observer = new MutationObserver(function(mutations) {
-            mutations.forEach(function(mutation) {
-                if (!modal.classList.contains('hidden')) {
-                    atualizarRelogioOnda();
-                }
-            });
-        });
-        observer.observe(modal, { attributes: true, attributeFilter: ['class'] });
-    }
-  
-  document.getElementById('tab-pendentes').onclick = () => alternarAba('pendentes');
-  document.getElementById('tab-confirmados').onclick = () => alternarAba('confirmados');
-
-  atualizarContainerAcoes();
-  window.addEventListener('resize', atualizarContainerAcoes);
-
-  // Usar event delegation para evitar problemas com atualizações dinâmicas
-  const tbodyPendentes = document.getElementById('conteudo-pendentes');
-  if (tbodyPendentes) {
-    const tbodyElement = tbodyPendentes.querySelector('tbody');
-    if (tbodyElement) {
-      tbodyElement.addEventListener('change', handleCheckboxChangeOnda);
-    }
-  }
-  
-  const selecionarTodos = document.getElementById('selecionar-todos');
-  if (selecionarTodos) {
-    selecionarTodos.onchange = function() {
-      document.querySelectorAll('.ag-checkbox').forEach(cb => {
-        cb.checked = this.checked;
-        this.checked ? agendamentosSelecionados.add(cb.value) : agendamentosSelecionados.delete(cb.value);
       });
       atualizarContainerAcoes();
-    };
-  }
-  
-  const pesquisaInput = document.getElementById('pesquisa-onda');
-  if (pesquisaInput) {
-    pesquisaInput.addEventListener('input', function(e) {
-      filtrarOnda(e.target.value);
-    });
-  }
-  
-  // Iniciar sistema de atualização em tempo real
-  iniciarPollingOnda();
-});
+    }, 100);
 
-// ==================== SISTEMA DE ATUALIZAÇÃO EM TEMPO REAL (POLLING) ====================
-
-// Armazenar último estado para comparar mudanças
-let ultimoEstadoOnda = {
-    totalPendentes: {{ pendentes.count }},
-    totalConcluidos: {{ concluidos.count }},
-    idsPendentes: new Set([{% for ag in pendentes %}{{ ag.id }}{% if not forloop.last %},{% endif %}{% endfor %}]),
-    idsConcluidos: new Set([{% for ag in concluidos %}{{ ag.id }}{% if not forloop.last %},{% endif %}{% endfor %}]),
-    timestamp: null
-};
-
-// Sistema de polling
-let pollingIntervalOnda = null;
-
-function iniciarPollingOnda() {
-    // Evitar múltiplos intervalos
-    if (pollingIntervalOnda) {
-        clearInterval(pollingIntervalOnda);
+    const pesquisaInput = document.getElementById('pesquisa-onda');
+    if (pesquisaInput && pesquisaInput.value) {
+      filtrarOnda(pesquisaInput.value);
     }
-    
-    console.log('Sistema de atualização em tempo real ativo para Liberação de Onda (verificando a cada 3 segundos)');
-    
-    // Primeira atualização após 1 segundo
+  }
+
+  function atualizarContainerAcoes() {
+    const c = document.getElementById('container-acoes');
+    const t = document.getElementById('texto-selecionados');
+    const isDesktop = window.innerWidth >= 768;
+    if (agendamentosSelecionados.size > 0 && isDesktop) {
+      c.classList.remove('hidden');
+      t.textContent = `${agendamentosSelecionados.size} veículo(s) selecionado(s)`;
+    } else {
+      c.classList.add('hidden');
+    }
+  }
+
+  // Função para lidar com mudanças nos checkboxes da liberação de onda
+  function handleCheckboxChangeOnda(event) {
+    if (event.target.classList.contains('ag-checkbox')) {
+      event.target.checked ? agendamentosSelecionados.add(event.target.value) : agendamentosSelecionados.delete(event.target.value);
+      if (!event.target.checked) {
+        const selecionarTodos = document.getElementById('selecionar-todos');
+        if (selecionarTodos) selecionarTodos.checked = false;
+      }
+      atualizarContainerAcoes();
+    }
+  }
+
+  function limparSelecoes() {
+    agendamentosSelecionados.clear();
+    document.querySelectorAll('.ag-checkbox, #selecionar-todos').forEach(c => c.checked = false);
+    atualizarContainerAcoes();
+
+    // Garantir sincronização após limpar
     setTimeout(() => {
-        verificarAtualizacoesOnda();
-    }, 1000);
-    
-    // Depois verificar a cada 3 segundos
-    pollingIntervalOnda = setInterval(() => {
-        verificarAtualizacoesOnda();
-    }, 3000);
-}
-
-function verificarAtualizacoesOnda() {
-    fetch('{% url "rondonopolis:onda_atualizar_dados" %}', {
-        method: 'GET',
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest'
-        },
-        cache: 'no-cache'
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            // Verificar se há mudanças
-            const idsPendentesAtual = new Set(data.pendentes.map(p => p.id));
-            const idsConcluidosAtual = new Set(data.concluidos.map(c => c.id));
-            
-            const mudouPendentes = data.total_pendentes !== ultimoEstadoOnda.totalPendentes ||
-                !setsIguaisOnda(idsPendentesAtual, ultimoEstadoOnda.idsPendentes);
-            
-            const mudouConcluidos = data.total_concluidos !== ultimoEstadoOnda.totalConcluidos ||
-                !setsIguaisOnda(idsConcluidosAtual, ultimoEstadoOnda.idsConcluidos);
-            
-            if (mudouPendentes || mudouConcluidos || !ultimoEstadoOnda.timestamp) {
-                // Há mudanças, atualizar interface
-                atualizarInterfaceOnda(data);
-                
-                // Atualizar estado
-                ultimoEstadoOnda = {
-                    totalPendentes: data.total_pendentes,
-                    totalConcluidos: data.total_concluidos,
-                    idsPendentes: idsPendentesAtual,
-                    idsConcluidos: idsConcluidosAtual,
-                    timestamp: data.timestamp || Date.now()
-                };
-            } else if (data.timestamp) {
-                // Atualizar timestamp mesmo sem mudanças visíveis
-                ultimoEstadoOnda.timestamp = data.timestamp;
-            }
-        }
-    })
-    .catch(error => {
-        console.error('Erro ao verificar atualizações da liberação de onda:', error);
-    });
-}
-
-function setsIguaisOnda(set1, set2) {
-    if (set1.size !== set2.size) return false;
-    for (let item of set1) {
-        if (!set2.has(item)) return false;
-    }
-    return true;
-}
-
-function atualizarInterfaceOnda(data) {
-    // Atualizar contadores nas abas
-    const tabPendentes = document.getElementById('tab-pendentes');
-    const tabConfirmados = document.getElementById('tab-confirmados');
-    
-    if (tabPendentes) {
-        const spans = tabPendentes.querySelectorAll('span');
-        if (spans.length > 0) {
-            const badge = spans[spans.length - 1];
-            badge.textContent = data.total_pendentes;
-        }
-    }
-    
-    if (tabConfirmados) {
-        const spans = tabConfirmados.querySelectorAll('span');
-        if (spans.length > 0) {
-            const badge = spans[spans.length - 1];
-            badge.textContent = data.total_concluidos;
-        }
-    }
-    
-    // Atualizar tabela de pendentes (desktop)
-    atualizarTabelaPendentesOnda(data.pendentes);
-    
-    // Atualizar tabela de concluídos (desktop)
-    atualizarTabelaConcluidosOnda(data.concluidos);
-    
-    // Atualizar cards mobile
-    atualizarCardsMobileOnda(data.pendentes, data.concluidos);
-}
-
-function atualizarTabelaPendentesOnda(pendentes) {
-    const tbody = document.querySelector('#conteudo-pendentes tbody');
-    if (!tbody) return;
-    
-    tbody.innerHTML = '';
-    
-    if (pendentes.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="py-8 text-center text-gray-400">Nenhum veículo aguardando liberação</td></tr>';
-        return;
-    }
-    
-    pendentes.forEach(agendamento => {
-        const tr = document.createElement('tr');
-        tr.className = 'border-b border-gray-100 hover:bg-gray-50 agendamento-row';
-        tr.id = `ag-${agendamento.id}`;
-        tr.setAttribute('data-motorista', agendamento.motorista.toLowerCase());
-        tr.setAttribute('data-placa', agendamento.placa_veiculo.toLowerCase());
-        tr.setAttribute('data-transportadora', agendamento.transportadora.toLowerCase());
-        
-        const horarioDisplay = agendamento.horario_agendado === '00:00'
-            ? '<span class="px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">ENCAIXE</span>'
-            : agendamento.horario_agendado;
-        
-        const dataFormatada = new Date(agendamento.data_agendada).toLocaleDateString('pt-BR');
-        
-        tr.innerHTML = `
-            <td class="py-2 px-3">
-                <input type="checkbox" class="ag-checkbox rounded border-gray-300 text-sky-600 focus:ring-sky-500" value="${agendamento.id}">
-            </td>
-            <td class="py-2 px-3 font-medium text-gray-900">
-                <div class="flex items-center gap-2">
-                    <span class="w-1.5 h-1.5 bg-sky-600 rounded-full"></span>
-                    ${agendamento.motorista}
-                </div>
-            </td>
-            <td class="py-2 px-3">${agendamento.transportadora}</td>
-            <td class="py-2 px-3 font-mono text-gray-800">${agendamento.placa_veiculo}</td>
-            <td class="py-2 px-3 text-xs text-gray-600">
-                ${dataFormatada} às ${horarioDisplay}
-            </td>
-            <td class="py-2 px-3 text-xs text-gray-600">
-                ${agendamento.coluna_ad ? `<span class="truncate max-w-xs block" title="${agendamento.coluna_ad}">${agendamento.coluna_ad.length > 30 ? agendamento.coluna_ad.substring(0, 30) + '...' : agendamento.coluna_ad}</span>` : '<span class="text-gray-400">—</span>'}
-            </td>
-            <td class="py-2 px-3 text-xs">
-                ${getStatusBadge(agendamento.status_geral || '')}
-            </td>
-        `;
-        
-        tbody.appendChild(tr);
-    });
-    
-    // Sincronizar checkboxes com o Set de selecionados
-    document.querySelectorAll('#conteudo-pendentes .ag-checkbox').forEach(cb => {
-        if (agendamentosSelecionados.has(cb.value)) {
-            cb.checked = true;
-        } else {
-            cb.checked = false;
-        }
-    });
-    
-    // Remover IDs do Set que não existem mais nos checkboxes
-    const checkboxesExistentes = Array.from(document.querySelectorAll('#conteudo-pendentes .ag-checkbox')).map(cb => cb.value);
-    agendamentosSelecionados.forEach(id => {
+      // Remover IDs do Set que não existem mais nos checkboxes
+      const checkboxesExistentes = Array.from(document.querySelectorAll('.ag-checkbox')).map(cb => cb.value);
+      agendamentosSelecionados.forEach(id => {
         if (!checkboxesExistentes.includes(id)) {
-            agendamentosSelecionados.delete(id);
+          agendamentosSelecionados.delete(id);
         }
-    });
-    
-    // Atualizar checkbox "selecionar todos"
+      });
+      atualizarContainerAcoes();
+    }, 100);
+  }
+
+  function liberarOndaIndividual(id) {
+    agendamentosSelecionados.clear();
+    agendamentosSelecionados.add(id);
+    liberarOndaSelecionados();
+  }
+
+  function liberarOndaSelecionados() {
+    if (agendamentosSelecionados.size === 0) return mostrarToast('Selecione pelo menos um veículo', 'error');
+
+    const modalAnterior = document.getElementById('modal-formulario');
+    if (modalAnterior && !modalAnterior.classList.contains('hidden')) {
+      fecharModal();
+      setTimeout(() => {
+        abrirModalOnda();
+      }, 100);
+    } else {
+      abrirModalOnda();
+    }
+  }
+
+  function abrirModalOnda() {
+    if (agendamentosSelecionados.size === 0) return mostrarToast('Selecione pelo menos um veículo', 'error');
+
+    const quantidade = agendamentosSelecionados.size;
+    const detalhesDiv = document.getElementById('detalhes-agendamento');
+    const mensagemMultiplos = document.getElementById('mensagem-multiplos');
+    const quantidadeSpan = document.getElementById('quantidade-selecionados');
+
+    // Se tiver apenas 1 selecionado, mostrar detalhes
+    if (quantidade === 1) {
+      const id = Array.from(agendamentosSelecionados)[0];
+      fetch(`/rondonopolis/portaria/detalhes/?id=${id}`)
+        .then(r => r.json())
+        .then(d => {
+          if (d.success) {
+            document.getElementById('titulo-modal').textContent = 'Liberar Onda';
+            document.getElementById('confirmacao-motorista').textContent = d.agendamento.motorista;
+            document.getElementById('confirmacao-placa').textContent = d.agendamento.placa_veiculo;
+            document.getElementById('confirmacao-transportadora').textContent = d.agendamento.transportadora;
+            const horarioTexto = d.agendamento.horario_agendado === '00:00' ? 'ENCAIXE' : d.agendamento.horario_agendado;
+            document.getElementById('confirmacao-agendamento').textContent = d.agendamento.data_agendada + ' às ' + horarioTexto;
+            document.getElementById('confirmacao-documentos').textContent = d.agendamento.coluna_ad || '—';
+
+            // Mostrar detalhes e esconder mensagem de múltiplos
+            detalhesDiv.classList.remove('hidden');
+            mensagemMultiplos.classList.add('hidden');
+
+            const modal = document.getElementById('modal-formulario');
+            modal.classList.remove('hidden');
+
+            limparEventListenersSwipe();
+            resetarSwipeButton();
+            setTimeout(inicializarSwipeButton, 150);
+          }
+        });
+    } else {
+      // Se tiver múltiplos, não mostrar detalhes
+      document.getElementById('titulo-modal').textContent = `Liberar Onda (${quantidade} veículos)`;
+      quantidadeSpan.textContent = quantidade;
+
+      // Esconder detalhes e mostrar mensagem de múltiplos
+      detalhesDiv.classList.add('hidden');
+      mensagemMultiplos.classList.remove('hidden');
+
+      const modal = document.getElementById('modal-formulario');
+      modal.classList.remove('hidden');
+
+      limparEventListenersSwipe();
+      resetarSwipeButton();
+      setTimeout(inicializarSwipeButton, 150);
+    }
+  }
+
+  function filtrarOnda(termo) {
+    const termoLower = termo.toLowerCase().trim();
+
+    const conteudoPendentes = document.getElementById('conteudo-pendentes');
+    const conteudoConfirmados = document.getElementById('conteudo-confirmados');
+    const pendentesAtivo = conteudoPendentes && !conteudoPendentes.classList.contains('hidden');
+    const confirmadosAtivo = conteudoConfirmados && !conteudoConfirmados.classList.contains('hidden');
+
+    if (pendentesAtivo) {
+      const pendentesRows = conteudoPendentes.querySelectorAll('.agendamento-row');
+      pendentesRows.forEach(row => {
+        const motorista = row.getAttribute('data-motorista') || '';
+        const placa = row.getAttribute('data-placa') || '';
+        const transportadora = row.getAttribute('data-transportadora') || '';
+
+        if (termoLower === '' || motorista.includes(termoLower) || placa.includes(termoLower) || transportadora.includes(termoLower)) {
+          row.style.display = '';
+        } else {
+          row.style.display = 'none';
+        }
+      });
+    }
+
+    if (confirmadosAtivo) {
+      const confirmadosRows = conteudoConfirmados.querySelectorAll('.confirmado-row');
+      confirmadosRows.forEach(row => {
+        const motorista = row.getAttribute('data-motorista') || '';
+        const placa = row.getAttribute('data-placa') || '';
+        const transportadora = row.getAttribute('data-transportadora') || '';
+
+        if (termoLower === '' || motorista.includes(termoLower) || placa.includes(termoLower) || transportadora.includes(termoLower)) {
+          row.style.display = '';
+        } else {
+          row.style.display = 'none';
+        }
+      });
+    }
+  }
+
+  let swipeMouseMoveHandlerOnda = null;
+  let swipeMouseUpHandlerOnda = null;
+  let swipeTouchMoveHandlerOnda = null;
+  let swipeTouchEndHandlerOnda = null;
+
+  function limparEventListenersSwipe() {
+    if (swipeMouseMoveHandlerOnda) {
+      document.removeEventListener('mousemove', swipeMouseMoveHandlerOnda);
+      swipeMouseMoveHandlerOnda = null;
+    }
+    if (swipeMouseUpHandlerOnda) {
+      document.removeEventListener('mouseup', swipeMouseUpHandlerOnda);
+      swipeMouseUpHandlerOnda = null;
+    }
+    if (swipeTouchMoveHandlerOnda) {
+      document.removeEventListener('touchmove', swipeTouchMoveHandlerOnda);
+      swipeTouchMoveHandlerOnda = null;
+    }
+    if (swipeTouchEndHandlerOnda) {
+      document.removeEventListener('touchend', swipeTouchEndHandlerOnda);
+      swipeTouchEndHandlerOnda = null;
+    }
+  }
+
+  function inicializarSwipeButton() {
+    const track = document.querySelector('.swipe-track');
+    const thumb = document.querySelector('.swipe-thumb');
+    if (!track || !thumb) return;
+
+    limparEventListenersSwipe();
+    resetarSwipeButton();
+    trackWidth = track.offsetWidth; thumbWidth = thumb.offsetWidth;
+    const max = trackWidth - thumbWidth - 8;
+
+    const start = e => { isDragging = true; startX = (e.clientX || e.touches[0].clientX) - thumb.getBoundingClientRect().left; };
+    const move = e => {
+      if (!isDragging) return;
+      currentX = (e.clientX || e.touches[0].clientX) - track.getBoundingClientRect().left - startX;
+      currentX = Math.max(0, Math.min(currentX, max));
+      thumb.style.transform = `translateX(${currentX}px)`;
+      const p = currentX / max;
+      document.querySelector('.swipe-progress').style.transform = `scaleX(${p})`;
+      if (p > 0.7) {
+        track.classList.add('success');
+        document.querySelector('.swipe-text').innerHTML = '<span class="text-white font-medium">Solte para liberar</span>';
+      } else {
+        track.classList.remove('success');
+        document.querySelector('.swipe-text').innerHTML = '<span class="text-gray-500 font-medium">Deslize para liberar</span>';
+      }
+    };
+    const end = () => {
+      if (!isDragging) return;
+      isDragging = false;
+      if (currentX > max * 0.8) liberarOnda();
+      else resetarSwipeButton();
+    };
+
+    swipeMouseMoveHandlerOnda = move;
+    swipeMouseUpHandlerOnda = end;
+    swipeTouchMoveHandlerOnda = move;
+    swipeTouchEndHandlerOnda = end;
+
+    thumb.addEventListener('mousedown', start);
+    thumb.addEventListener('touchstart', start);
+
+    document.addEventListener('mousemove', move);
+    document.addEventListener('mouseup', end);
+    document.addEventListener('touchmove', move);
+    document.addEventListener('touchend', end);
+  }
+
+  function resetarSwipeButton() {
+    const thumb = document.querySelector('.swipe-thumb');
+    const track = document.querySelector('.swipe-track');
+    const prog = document.querySelector('.swipe-progress');
+    if (thumb) thumb.style.transform = 'translateX(0)';
+    track?.classList.remove('success');
+    prog && (prog.style.transform = 'scaleX(0)');
+    document.querySelector('.swipe-text').innerHTML = '<span class="text-gray-500 font-medium">Deslize para liberar</span>';
+  }
+
+  async function liberarOnda() {
+    if (agendamentosSelecionados.size === 0) {
+      mostrarToast('Selecione pelo menos um veículo', 'error');
+      return;
+    }
+
+    mostrarLoading();
+    const fd = new FormData();
+    for (const id of agendamentosSelecionados) {
+      fd.append('ids[]', id);
+    }
+    fd.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+    const r = await fetch('/rondonopolis/onda/registrar-liberacao/', { method: 'POST', body: fd });
+    const d = await r.json();
+    esconderLoading();
+    fecharModal();
+    if (d.success) {
+      mostrarToast('Onda liberada com sucesso!', 'success');
+      // Limpar seleção
+      limparSelecoes();
+      setTimeout(() => location.reload(), 1500);
+    } else {
+      mostrarToast(d.error || 'Erro ao liberar', 'error');
+    }
+  }
+
+  function fecharModal() {
+    const modal = document.getElementById('modal-formulario');
+    if (modal) {
+      modal.classList.add('hidden');
+      limparEventListenersSwipe();
+      resetarSwipeButton();
+      agendamentoSelecionado = null;
+      modal.removeAttribute('data-agendamento-id');
+      const form = modal.querySelector('form');
+      if (form) {
+        form.reset();
+      }
+    }
+  }
+
+  function mostrarLoading() { document.getElementById('loadingOverlay').classList.remove('hidden'); }
+  function esconderLoading() { document.getElementById('loadingOverlay').classList.add('hidden'); }
+
+
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const modal = document.getElementById('modal-formulario');
+
+
+    document.getElementById('tab-pendentes').onclick = () => alternarAba('pendentes');
+    document.getElementById('tab-confirmados').onclick = () => alternarAba('confirmados');
+
+    atualizarContainerAcoes();
+    window.addEventListener('resize', atualizarContainerAcoes);
+
+    // Usar event delegation para evitar problemas com atualizações dinâmicas
+    const tbodyPendentes = document.getElementById('conteudo-pendentes');
+    if (tbodyPendentes) {
+      tbodyPendentes.addEventListener('change', function (e) {
+        if (e.target && e.target.matches('input.ag-checkbox')) {
+          handleCheckboxChangeOnda(e);
+        }
+      });
+    }
+
     const selecionarTodos = document.getElementById('selecionar-todos');
     if (selecionarTodos) {
-        const totalCheckboxes = document.querySelectorAll('#conteudo-pendentes .ag-checkbox').length;
-        selecionarTodos.checked = totalCheckboxes > 0 && agendamentosSelecionados.size === totalCheckboxes;
+      selecionarTodos.onchange = function () {
+        document.querySelectorAll('.ag-checkbox').forEach(cb => {
+          cb.checked = this.checked;
+          this.checked ? agendamentosSelecionados.add(cb.value) : agendamentosSelecionados.delete(cb.value);
+        });
+        atualizarContainerAcoes();
+      };
     }
-    
-    atualizarContainerAcoes();
-    // Event delegation já está configurado no DOMContentLoaded, não precisa reaplicar
-}
 
-function atualizarTabelaConcluidosOnda(concluidos) {
-    const tbody = document.querySelector('#conteudo-confirmados tbody');
-    if (!tbody) return;
-    
-    tbody.innerHTML = '';
-    
-    if (concluidos.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="py-8 text-center text-gray-400">Nenhum veículo liberado hoje</td></tr>';
-        return;
+    const pesquisaInput = document.getElementById('pesquisa-onda');
+    if (pesquisaInput) {
+      pesquisaInput.addEventListener('input', function (e) {
+        filtrarOnda(e.target.value);
+      });
     }
-    
-    concluidos.forEach(concluido => {
-        const tr = document.createElement('tr');
-        tr.className = 'border-b border-gray-100 hover:bg-gray-50 confirmado-row';
-        tr.setAttribute('data-motorista', concluido.motorista.toLowerCase());
-        tr.setAttribute('data-placa', concluido.placa_veiculo.toLowerCase());
-        tr.setAttribute('data-transportadora', concluido.transportadora.toLowerCase());
-        
-        const ondaData = concluido.onda_liberacao
-            ? new Date(concluido.onda_liberacao).toLocaleString('pt-BR', { timeZone: 'America/Cuiaba', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
-            : '-';
-        
-        tr.innerHTML = `
-            <td class="py-2 px-3 font-medium text-gray-900">
-                <div class="flex items-center gap-2">
-                    <span class="w-1.5 h-1.5 bg-emerald-600 rounded-full"></span>
-                    ${concluido.motorista}
-                </div>
-            </td>
-            <td class="py-2 px-3">${concluido.transportadora}</td>
-            <td class="py-2 px-3 font-mono">${concluido.placa_veiculo}</td>
-            <td class="py-2 px-3 text-xs text-gray-600">
-                ${concluido.data_agendada ? new Date(concluido.data_agendada).toLocaleDateString('pt-BR') + ' às ' + (concluido.horario_agendado === '00:00' ? '<span class="px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">ENCAIXE</span>' : concluido.horario_agendado) : '—'}
-            </td>
-            <td class="py-2 px-3 text-xs text-gray-600">
-                ${concluido.coluna_ad ? `<span class="truncate max-w-xs block" title="${concluido.coluna_ad}">${concluido.coluna_ad.length > 30 ? concluido.coluna_ad.substring(0, 30) + '...' : concluido.coluna_ad}</span>` : '<span class="text-gray-400">—</span>'}
-            </td>
-            <td class="py-2 px-3 text-sky-600">${ondaData}</td>
-            <td class="py-2 px-3 text-xs text-gray-600">${concluido.onda_liberado_por || '—'}</td>
-        `;
-        
-        tbody.appendChild(tr);
-    });
-}
 
-function atualizarCardsMobileOnda(pendentes, concluidos) {
-    // Atualizar cards de pendentes
-    const containerPendentes = document.querySelector('#conteudo-pendentes .md\\:hidden');
-    if (containerPendentes) {
-        containerPendentes.innerHTML = '';
-        
-        if (pendentes.length === 0) {
-            containerPendentes.innerHTML = '<div class="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center"><p class="text-gray-400 text-sm">Nenhum veículo aguardando liberação</p></div>';
-        } else {
-            pendentes.forEach(agendamento => {
-                const card = criarCardPendenteOndaMobile(agendamento);
-                containerPendentes.appendChild(card);
-            });
-        }
-    }
-    
-    // Atualizar cards de concluídos
-    const containerConcluidos = document.querySelector('#conteudo-confirmados .md\\:hidden');
-    if (containerConcluidos) {
-        containerConcluidos.innerHTML = '';
-        
-        if (concluidos.length === 0) {
-            containerConcluidos.innerHTML = '<div class="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center"><p class="text-gray-400 text-sm">Nenhum veículo liberado hoje</p></div>';
-        } else {
-            concluidos.forEach(concluido => {
-                const card = criarCardConcluidoOndaMobile(concluido);
-                containerConcluidos.appendChild(card);
-            });
-        }
-    }
-}
 
-function getStatusText(status) {
-    if (status === 'processo_concluido') {
-        return '<span class="text-emerald-600">Concluído</span>';
-    } else if (status === 'pendente_liberacao_onda') {
-        return '<span class="text-sky-600">Pendente Onda</span>';
-    } else if (status === 'confirmacao_armazem') {
-        return '<span class="text-blue-600">Armazém</span>';
-    } else if (status === 'em_checklist') {
-        return '<span class="text-yellow-600">CheckList</span>';
-    } else {
-        return '<span class="text-gray-600">Aguardando</span>';
-    }
-}
+  });
 
-function getStatusBadge(status) {
-    if (status === 'processo_concluido') {
-        return '<span class="inline-flex px-1.5 py-0.5 rounded-full text-emerald-700 bg-emerald-50 text-xs border border-emerald-100">Concluído</span>';
-    } else if (status === 'pendente_liberacao_onda') {
-        return '<span class="inline-flex px-1.5 py-0.5 rounded-full text-sky-700 bg-sky-50 text-xs border border-sky-100">Pendente Onda</span>';
-    } else if (status === 'confirmacao_armazem') {
-        return '<span class="inline-flex px-1.5 py-0.5 rounded-full text-blue-700 bg-blue-50 text-xs border border-blue-100">Armazém</span>';
-    } else if (status === 'em_checklist') {
-        return '<span class="inline-flex px-1.5 py-0.5 rounded-full text-yellow-700 bg-yellow-50 text-xs border border-yellow-100">CheckList</span>';
-    } else {
-        return '<span class="inline-flex px-1.5 py-0.5 rounded-full text-gray-700 bg-gray-50 text-xs border border-gray-100">Aguardando</span>';
-    }
-}
 
-function criarCardPendenteOndaMobile(agendamento) {
-    const card = document.createElement('div');
-    card.className = 'bg-white rounded-lg shadow-sm border border-gray-200 p-2.5 agendamento-row';
-    card.id = `ag-card-${agendamento.id}`;
-    card.setAttribute('data-motorista', agendamento.motorista.toLowerCase());
-    card.setAttribute('data-placa', agendamento.placa_veiculo.toLowerCase());
-    card.setAttribute('data-transportadora', agendamento.transportadora.toLowerCase());
-    
-    const horarioDisplay = agendamento.horario_agendado === '00:00'
-        ? '<span class="px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">ENCAIXE</span>'
-        : agendamento.horario_agendado;
-    
-    const dataFormatada = new Date(agendamento.data_agendada).toLocaleDateString('pt-BR');
-    
-    card.innerHTML = `
-        <div class="mb-3">
-            <div class="flex items-center gap-2 mb-2">
-                <span class="w-1.5 h-1.5 bg-sky-600 rounded-full"></span>
-                <h3 class="font-semibold text-gray-900 text-sm">${agendamento.motorista}</h3>
-            </div>
-            <div class="space-y-1 text-xs text-gray-600">
-                <div class="flex items-center gap-1.5">
-                    <i class="bi bi-building text-gray-400 text-xs"></i>
-                    <span class="truncate">${agendamento.transportadora}</span>
-                </div>
-                <div class="flex items-center gap-1.5">
-                    <i class="bi bi-truck text-gray-400 text-xs"></i>
-                    <span class="font-mono">${agendamento.placa_veiculo}</span>
-                </div>
-                <div class="flex items-center gap-1.5">
-                    <i class="bi bi-calendar text-gray-400 text-xs"></i>
-                    <span>${dataFormatada} às ${horarioDisplay}</span>
-                </div>
-                <div class="flex items-start gap-1.5">
-                    <i class="bi bi-file-text text-gray-400 text-xs mt-0.5"></i>
-                    <span class="flex-1">
-                        ${agendamento.coluna_ad ? agendamento.coluna_ad.substring(0, 50) + (agendamento.coluna_ad.length > 50 ? '...' : '') : '<span class="text-gray-400">—</span>'}
-                    </span>
-                </div>
-                <div class="flex items-center gap-1.5">
-                    <i class="bi bi-info-circle text-gray-400 text-xs"></i>
-                    <span>${getStatusText(agendamento.status_geral)}</span>
-                </div>
-            </div>
-        </div>
-        <button onclick="liberarOndaIndividual('${agendamento.id}')" class="w-full flex items-center justify-center gap-2 bg-sky-600 hover:bg-sky-700 text-white text-xs px-3 py-2.5 rounded-md transition-colors">
-            <i class="bi bi-check-lg"></i>
-            <span>Liberar Onda</span>
-        </button>
-    `;
-    
-    return card;
-}
 
-function criarCardConcluidoOndaMobile(concluido) {
-    const card = document.createElement('div');
-    card.className = 'bg-white rounded-lg shadow-sm border border-gray-200 p-2.5 confirmado-row';
-    card.setAttribute('data-motorista', concluido.motorista.toLowerCase());
-    card.setAttribute('data-placa', concluido.placa_veiculo.toLowerCase());
-    card.setAttribute('data-transportadora', concluido.transportadora.toLowerCase());
-    
-    const ondaData = concluido.onda_liberacao
-        ? new Date(concluido.onda_liberacao).toLocaleString('pt-BR', { timeZone: 'America/Cuiaba', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
-        : '-';
-    
-    card.innerHTML = `
-        <div class="flex items-center gap-2 mb-2">
-            <span class="w-1.5 h-1.5 bg-emerald-600 rounded-full"></span>
-            <h3 class="font-semibold text-gray-900 text-sm">${concluido.motorista}</h3>
-        </div>
-        <div class="space-y-1 text-xs text-gray-600">
-            <div class="flex items-center gap-1.5">
-                <i class="bi bi-building text-gray-400 text-xs"></i>
-                <span class="truncate">${concluido.transportadora}</span>
-            </div>
-            <div class="flex items-center gap-1.5">
-                <i class="bi bi-truck text-gray-400 text-xs"></i>
-                <span class="font-mono">${concluido.placa_veiculo}</span>
-            </div>
-            <div class="flex items-center gap-1.5">
-                <i class="bi bi-clock text-gray-400 text-xs"></i>
-                <span class="text-sky-600 font-medium">Liberado: ${ondaData}</span>
-            </div>
-            <div class="flex items-center gap-1.5">
-                <i class="bi bi-person-check text-gray-400 text-xs"></i>
-                <span class="text-gray-600">${concluido.onda_liberado_por || '—'}</span>
-            </div>
-        </div>
-    `;
-    
-    return card;
-}
 </script>
 {% endblock %}
 
 {% block extra_js %}
+<script src="{% static 'js/smart_update.js' %}?v=7"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    // Inicializar Smart Update para a tela 'onda'
+    SmartUpdate.init('onda');
+  });
+</script>
 {% endblock %}
-

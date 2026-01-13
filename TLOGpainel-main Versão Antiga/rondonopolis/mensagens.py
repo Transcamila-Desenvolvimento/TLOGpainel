@@ -56,12 +56,16 @@ def enviar_confirmacao_chegada(agendamento, usuario, numero_whatsapp=None):
 def get_etapas_processo(agendamento):
     """
     Retorna as etapas do processo com status atualizado
+    Filtra etapas baseado no tipo (Coleta vs Entrega)
+    
+    Fluxo COLETA: Portaria → Checklist → Armazém → Onda → Documentos
+    Fluxo ENTREGA: Portaria → Armazém → Documentos
     """
     from django.utils import timezone as tz
     
     etapas = []
     
-    # Portaria
+    # Portaria - sempre presente
     etapas.append({
         'nome': 'Portaria',
         'concluida': bool(agendamento.portaria_liberacao),
@@ -69,16 +73,17 @@ def get_etapas_processo(agendamento):
         'usuario': agendamento.portaria_liberado_por.get_full_name() if agendamento.portaria_liberado_por else None,
     })
     
-    # Checklist
-    etapas.append({
-        'nome': 'CheckList',
-        'concluida': bool(agendamento.checklist_data),
-        'data': agendamento.checklist_data,
-        'usuario': agendamento.checklist_preenchido_por.get_full_name() if agendamento.checklist_preenchido_por else None,
-        'numero': agendamento.checklist_numero,
-    })
+    # Checklist - APENAS PARA COLETA
+    if agendamento.tipo == 'coleta':
+        etapas.append({
+            'nome': 'CheckList',
+            'concluida': bool(agendamento.checklist_data),
+            'data': agendamento.checklist_data,
+            'usuario': agendamento.checklist_preenchido_por.get_full_name() if agendamento.checklist_preenchido_por else None,
+            'numero': agendamento.checklist_numero,
+        })
     
-    # Armazém
+    # Armazém - sempre presente
     etapas.append({
         'nome': 'Armazém',
         'concluida': bool(agendamento.armazem_chegada),
@@ -86,16 +91,17 @@ def get_etapas_processo(agendamento):
         'usuario': agendamento.armazem_confirmado_por.get_full_name() if agendamento.armazem_confirmado_por else None,
     })
     
-    # Onda
-    etapas.append({
-        'nome': 'Onda',
-        'concluida': bool(agendamento.onda_liberacao),
-        'data': agendamento.onda_liberacao,
-        'usuario': agendamento.onda_liberado_por.get_full_name() if agendamento.onda_liberado_por else None,
-        'status': agendamento.get_onda_status_display(),
-    })
+    # Onda - APENAS PARA COLETA
+    if agendamento.tipo == 'coleta':
+        etapas.append({
+            'nome': 'Onda',
+            'concluida': bool(agendamento.onda_liberacao),
+            'data': agendamento.onda_liberacao,
+            'usuario': agendamento.onda_liberado_por.get_full_name() if agendamento.onda_liberado_por else None,
+            'status': agendamento.get_onda_status_display(),
+        })
     
-    # Documentos
+    # Documentos - sempre presente
     etapas.append({
         'nome': 'Documentos',
         'concluida': bool(agendamento.documentos_liberacao),
@@ -177,12 +183,19 @@ def _enviar_notificacao_etapa_sync(agendamento_id, etapa_nome, usuario_acao=None
                 return
         else:
             # Mapear etapa para grupo correspondente
-            # Os grupos são: portaria, checklist, armazem, administracao, liberacao_documentos
-            etapa_para_grupo = {
-                'portaria': 'checklist',              # Quando libera portaria, notifica grupo checklist
-                'checklist': 'armazem',               # Quando completa checklist, notifica grupo armazém
-                'armazem': 'liberacao_documentos',    # Quando entra no armazém, notifica grupo documentos
-            }
+            if agendamento.tipo == 'entrega':
+                # Fluxo ENTREGA: Portaria -> Armazém -> Documentos
+                etapa_para_grupo = {
+                    'portaria': 'armazem',                # Portaria libera -> vai para Armazém
+                    'armazem': 'liberacao_documentos',    # Armazém libera -> vai para Documentos
+                }
+            else:
+                # Fluxo COLETA: Portaria -> Checklist -> Armazém -> Documentos
+                etapa_para_grupo = {
+                    'portaria': 'checklist',              # Quando libera portaria, notifica grupo checklist
+                    'checklist': 'armazem',               # Quando completa checklist, notifica grupo armazém
+                    'armazem': 'liberacao_documentos',    # Quando entra no armazém, notifica grupo documentos
+                }
             
             grupo_proxima_etapa = etapa_para_grupo.get(etapa_nome)
             
@@ -211,9 +224,11 @@ def _enviar_notificacao_etapa_sync(agendamento_id, etapa_nome, usuario_acao=None
         mensagem_whatsapp = None
         if etapa_nome != 'documentos':
             if etapa_nome == 'portaria':
+                proxima_etapa_nome = "Armazém" if agendamento.tipo == 'entrega' else "Checklist"
+                
                 mensagem_whatsapp = (
                     f"Nova pendência identificada\n\n"
-                    f"O motorista {agendamento.motorista.nome} foi liberado na portaria e encontra-se pendente na etapa de Checklist.\n\n"
+                    f"O motorista {agendamento.motorista.nome} foi liberado na portaria e encontra-se pendente na etapa de {proxima_etapa_nome}.\n\n"
                     f"Detalhes do veículo e serviço:\n\n"
                     f"Placa: {agendamento.placa_veiculo}\n"
                     f"Tipo de veículo: {agendamento.get_tipo_veiculo_display()}\n"
@@ -242,11 +257,14 @@ def _enviar_notificacao_etapa_sync(agendamento_id, etapa_nome, usuario_acao=None
                     f"Transcamila Cargas e Armazéns Gerais LTDA"
                 )
             elif etapa_nome == 'armazem':
-                # Determinar status da onda
-                if agendamento.onda_liberacao:
-                    status_onda = "LIBERADA"
-                else:
-                    status_onda = "PENDENTE"
+                # Determinar status da onda (apenas para coleta)
+                status_onda_linha = ""
+                if agendamento.tipo == 'coleta':
+                    if agendamento.onda_liberacao:
+                        status_onda = "LIBERADA"
+                    else:
+                        status_onda = "PENDENTE"
+                    status_onda_linha = f"Status da Onda: {status_onda}\n"
                 
                 mensagem_whatsapp = (
                     f"Nova pendência identificada\n\n"
@@ -256,7 +274,7 @@ def _enviar_notificacao_etapa_sync(agendamento_id, etapa_nome, usuario_acao=None
                     f"Tipo de veículo: {agendamento.get_tipo_veiculo_display()}\n"
                     f"Serviço: {agendamento.get_tipo_display()}\n"
                     f"Transportadora: {agendamento.transportadora.nome}\n"
-                    f"Status da Onda: {status_onda}\n\n"
+                    f"{status_onda_linha}\n"
                     f"TLOGpainel\n"
                     f"Transcamila Cargas e Armazéns Gerais LTDA"
                 )
@@ -387,12 +405,19 @@ def _enviar_notificacao_etapa_sync(agendamento_id, etapa_nome, usuario_acao=None
                             url_push = '/rondonopolis/dashboard/'
                             tag_push = 'processo-concluido'
                             etapa_enviado = 'documentos'
-                        elif etapa_nome == 'portaria' and grupo_proxima_etapa == 'checklist':
-                            mensagem_push = f"Nova pendência: {agendamento.motorista.nome} - {agendamento.placa_veiculo} aguardando Checklist"
-                            titulo_push = "Pendência de Checklist"
-                            url_push = '/rondonopolis/checklist/'
-                            tag_push = 'pendencia-checklist'
-                            etapa_enviado = 'checklist'
+                        elif etapa_nome == 'portaria':
+                            if agendamento.tipo == 'entrega':
+                                mensagem_push = f"Nova pendência: {agendamento.motorista.nome} - {agendamento.placa_veiculo} aguardando Armazém"
+                                titulo_push = "Pendência de Armazém"
+                                url_push = '/rondonopolis/armazem/'
+                                tag_push = 'pendencia-armazem'
+                                etapa_enviado = 'armazem'
+                            else:
+                                mensagem_push = f"Nova pendência: {agendamento.motorista.nome} - {agendamento.placa_veiculo} aguardando Checklist"
+                                titulo_push = "Pendência de Checklist"
+                                url_push = '/rondonopolis/checklist/'
+                                tag_push = 'pendencia-checklist'
+                                etapa_enviado = 'checklist'
                         elif etapa_nome == 'checklist' and grupo_proxima_etapa == 'armazem':
                             mensagem_push = f"Nova pendência: {agendamento.motorista.nome} - {agendamento.placa_veiculo} aguardando Armazém"
                             titulo_push = "Pendência de Armazém"
@@ -443,8 +468,12 @@ def _enviar_notificacao_etapa_sync(agendamento_id, etapa_nome, usuario_acao=None
                             mensagem_erro = f"Processo concluído: {agendamento.motorista.nome} - {agendamento.placa_veiculo}"
                             etapa_enviado = 'documentos'
                         elif etapa_nome == 'portaria':
-                            mensagem_erro = f"Nova pendência: {agendamento.motorista.nome} - {agendamento.placa_veiculo} aguardando Checklist"
-                            etapa_enviado = 'checklist'
+                            if agendamento.tipo == 'entrega':
+                                mensagem_erro = f"Nova pendência: {agendamento.motorista.nome} - {agendamento.placa_veiculo} aguardando Armazém"
+                                etapa_enviado = 'armazem'
+                            else:
+                                mensagem_erro = f"Nova pendência: {agendamento.motorista.nome} - {agendamento.placa_veiculo} aguardando Checklist"
+                                etapa_enviado = 'checklist'
                         elif etapa_nome == 'checklist':
                             mensagem_erro = f"Nova pendência: {agendamento.motorista.nome} - {agendamento.placa_veiculo} aguardando Armazém"
                             etapa_enviado = 'armazem'

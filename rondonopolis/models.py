@@ -61,6 +61,7 @@ class Agendamento(models.Model):
         ('aguardando_chegada', 'Aguardando Chegada'),
         ('em_checklist', 'Em CheckList'),
         ('confirmacao_armazem', 'Confirmação Armazém'),
+        ('em_operacao_armazem', 'Em Operação no Armazém'),
         ('pendente_liberacao_onda', 'Pendente de Liberação Onda'),
         ('pendente_liberacao_documentos', 'Pendente Liberação Documentos'),
         ('processo_concluido', 'Processo Concluído'),
@@ -101,6 +102,13 @@ class Agendamento(models.Model):
         null=True, blank=True,
         related_name='liberacoes_portaria'
     )
+    portaria_chegada_armazem = models.DateTimeField("Portaria - Confirmou Chegada Armazém", blank=True, null=True)
+    portaria_chegada_armazem_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='confirmacoes_chegada_armazem_portaria'
+    )
 
     # ==================== CHECKLIST ====================
     checklist_numero = models.CharField("Nº do CheckList", max_length=50, blank=True, null=True)
@@ -121,6 +129,14 @@ class Agendamento(models.Model):
         null=True, blank=True,
         related_name='confirmacoes_armazem'
     )
+    armazem_saida = models.DateTimeField("Armazém - Data/Hora da Saída", blank=True, null=True)
+    armazem_saida_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='saidas_armazem'
+    )
+    armazem_saida_observacao = models.TextField("Armazém - Observação Saída", blank=True, null=True)
 
     # ==================== ONDA ====================
     onda_status = models.CharField(max_length=20, choices=ONDA_STATUS_CHOICES, default='aguardando')
@@ -140,6 +156,7 @@ class Agendamento(models.Model):
         null=True, blank=True,
         related_name='liberacoes_documentos'
     )
+    documentos_observacao = models.TextField("Documentos - Observação Liberação", blank=True, null=True)
 
     # ==================== CONTROLE E AUDITORIA ====================
     criado_em = models.DateTimeField(auto_now_add=True)
@@ -170,33 +187,39 @@ class Agendamento(models.Model):
         """
         Atualiza automaticamente o status_geral com base nas etapas concluídas.
         
-        Fluxo COLETA: Portaria -> CheckList -> Onda -> Armazém -> Documentos
-        Fluxo ENTREGA: Portaria -> Armazém -> Documentos (Pula CheckList e Onda)
+        Fluxo COLETA: Portaria -> CheckList -> Onda -> Armazém (Entrada/Saída) -> Documentos
+        Fluxo ENTREGA: Portaria -> Armazém (Entrada/Saída) -> Documentos (Pula CheckList e Onda)
         """
         is_entrega = (self.tipo == 'entrega')
         
         # 1. Processo Concluído (Comum a ambos)
         # Se documentos liberados, acabou
         if self.documentos_liberacao:
-             # Para ter chegado aqui, deve ter passado pelo armazém
-            if self.armazem_chegada:
+             # Para ter chegado aqui, deve ter passado na SAÍDA do armazém
+            if self.armazem_saida:
                 novo_status = 'processo_concluido'
             else:
                 # Caso inconsistente, mas mantém lógica anterior
                 novo_status = 'processo_concluido'
                 
-        # 2. Pendente Documentos (Comum a ambos - já passou no armazém)
-        elif self.armazem_chegada and not self.documentos_liberacao:
+        # 2. Pendente Documentos (Comum a ambos - já SAIU do armazém)
+        elif self.armazem_saida and not self.documentos_liberacao:
             novo_status = 'pendente_liberacao_documentos'
 
-        # 3. Lógica específica por tipo antes do Armazém
+        # 3. Em Operação no Armazém (Já entrou mas não saiu)
+        elif self.armazem_chegada and not self.armazem_saida:
+            novo_status = 'em_operacao_armazem'
+
+        # 4. Lógica específica por tipo antes do Armazém
         elif is_entrega:
-            # Fluxo ENTREGA: Portaria -> Armazém
+            # Fluxo ENTREGA: Portaria -> OD (Onda) -> Armazém
             
-            # Se já passou na portaria, vai direto para aguardar armazém
-            # (Não tem checklist nem onda)
-            if self.portaria_liberacao:
-                novo_status = 'confirmacao_armazem' # Aguardando confirmação no armazém
+            # Se já passou na portaria e a OD/Onda foi liberada
+            if self.portaria_liberacao and self.onda_liberacao:
+                novo_status = 'confirmacao_armazem'
+            # Se passou na portaria mas a OD está pendente
+            elif self.portaria_liberacao:
+                novo_status = 'pendente_liberacao_onda'
             else:
                 novo_status = 'aguardando_chegada'
                 

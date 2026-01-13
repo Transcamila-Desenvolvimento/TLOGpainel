@@ -13,7 +13,6 @@
                         <input type="checkbox" id="selecionar-todos"
                             class="rounded border-gray-300 text-sky-600 focus:ring-sky-500">
                     </th>
-                    <th class="py-2 px-3 text-left font-medium w-20">Tipo</th>
                     <th class="py-2 px-3 text-left font-medium">Motorista</th>
                     <th class="py-2 px-3 text-left font-medium">Transportadora</th>
                     <th class="py-2 px-3 text-left font-medium">Placa</th>
@@ -31,15 +30,6 @@
                         <input type="checkbox"
                             class="ag-checkbox rounded border-gray-300 text-sky-600 focus:ring-sky-500"
                             value="{{ ag.id }}">
-                    </td>
-                    <td class="py-2 px-3">
-                        {% if ag.tipo == 'coleta' %}
-                        <span
-                            class="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-100 text-sky-700 border border-sky-200 uppercase">Onda</span>
-                        {% else %}
-                        <span
-                            class="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-100 text-sky-700 border border-sky-200 uppercase">OD</span>
-                        {% endif %}
                     </td>
                     <td class="py-2 px-3 font-medium text-gray-900">
                         <div class="flex items-center gap-2">
@@ -72,9 +62,8 @@
                             class="inline-flex px-1.5 py-0.5 rounded-full text-emerald-700 bg-emerald-50 text-xs border border-emerald-100">Concluído</span>
                         {% elif ag.status_geral == 'pendente_liberacao_onda' %}
                         <span
-                            class="inline-flex px-1.5 py-0.5 rounded-full text-sky-700 bg-sky-50 border-sky-100 text-xs border">
-                            Pendente {% if ag.tipo == 'coleta' %}Onda{% else %}OD{% endif %}
-                        </span>
+                            class="inline-flex px-1.5 py-0.5 rounded-full text-sky-700 bg-sky-50 text-xs border border-sky-100">Pendente
+                            Onda</span>
                         {% elif ag.status_geral == 'confirmacao_armazem' %}
                         <span
                             class="inline-flex px-1.5 py-0.5 rounded-full text-blue-700 bg-blue-50 text-xs border border-blue-100">Armazém</span>
@@ -103,18 +92,9 @@
             data-motorista="{{ ag.motorista.nome|lower }}" data-placa="{{ ag.placa_veiculo|lower }}"
             data-transportadora="{{ ag.transportadora.nome|lower }}">
             <div class="mb-3">
-                <div class="flex items-center justify-between gap-2 mb-2">
-                    <div class="flex items-center gap-2">
-                        <span class="w-1.5 h-1.5 bg-sky-600 rounded-full"></span>
-                        <h3 class="font-semibold text-gray-900 text-sm">{{ ag.motorista.nome }}</h3>
-                    </div>
-                    {% if ag.tipo == 'coleta' %}
-                    <span
-                        class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-sky-100 text-sky-700 border border-sky-200 uppercase text-right">Onda</span>
-                    {% else %}
-                    <span
-                        class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-sky-100 text-sky-700 border border-sky-200 uppercase text-right">OD</span>
-                    {% endif %}
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="w-1.5 h-1.5 bg-sky-600 rounded-full"></span>
+                    <h3 class="font-semibold text-gray-900 text-sm">{{ ag.motorista.nome }}</h3>
                 </div>
                 <div class="space-y-1 text-xs text-gray-600">
                     <div class="flex items-center gap-1.5">
@@ -167,7 +147,7 @@
             <button onclick="liberarOndaIndividual('{{ ag.id }}')"
                 class="w-full flex items-center justify-center gap-2 bg-sky-600 hover:bg-sky-700 text-white text-xs px-3 py-2.5 rounded-md transition-colors">
                 <i class="bi bi-check-lg"></i>
-                <span>Liberar {% if ag.tipo == 'coleta' %}Onda{% else %}OD{% endif %}</span>
+                <span>Liberar Onda</span>
             </button>
         </div>
         {% empty %}
@@ -185,13 +165,12 @@
         <table class="min-w-full text-[14px]">
             <thead>
                 <tr class="text-gray-800 text-xs border-b border-gray-200 uppercase tracking-wide">
-                    <th class="py-2 px-3 text-left font-medium w-20">Tipo</th>
                     <th class="py-2 px-3 text-left font-medium">Motorista</th>
                     <th class="py-2 px-3 text-left font-medium">Transportadora</th>
                     <th class="py-2 px-3 text-left font-medium">Placa</th>
                     <th class="py-2 px-3 text-left font-medium">Agendamento</th>
                     <th class="py-2 px-3 text-left font-medium">Documentos</th>
-                    <th class="py-2 px-3 text-left font-medium">Liberação Onda/OD</th>
+                    <th class="py-2 px-3 text-left font-medium">Liberação Onda</th>
                     <th class="py-2 px-3 text-left font-medium">Liberado por</th>
                 </tr>
             </thead>
@@ -200,15 +179,6 @@
                 <tr class="border-b border-gray-100 hover:bg-gray-50 confirmado-row"
                     data-motorista="{{ ag.motorista.nome|lower }}" data-placa="{{ ag.placa_veiculo|lower }}"
                     data-transportadora="{{ ag.transportadora.nome|lower }}">
-                    <td class="py-2 px-3">
-                        {% if ag.tipo == 'coleta' %}
-                        <span
-                            class="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-100 text-sky-700 border border-sky-200 uppercase">Onda</span>
-                        {% else %}
-                        <span
-                            class="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-100 text-sky-700 border border-sky-200 uppercase">OD</span>
-                        {% endif %}
-                    </td>
                     <td class="py-2 px-3 font-medium text-gray-900">
                         <div class="flex items-center gap-2">
                             <span class="w-1.5 h-1.5 bg-emerald-600 rounded-full"></span>
@@ -263,18 +233,9 @@
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-2.5 confirmado-row"
             data-motorista="{{ ag.motorista.nome|lower }}" data-placa="{{ ag.placa_veiculo|lower }}"
             data-transportadora="{{ ag.transportadora.nome|lower }}">
-            <div class="flex items-center justify-between gap-2 mb-2">
-                <div class="flex items-center gap-2">
-                    <span class="w-1.5 h-1.5 bg-emerald-600 rounded-full"></span>
-                    <h3 class="font-semibold text-gray-900 text-sm">{{ ag.motorista.nome }}</h3>
-                </div>
-                {% if ag.tipo == 'coleta' %}
-                <span
-                    class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-sky-100 text-sky-700 border border-sky-200 uppercase text-right">Onda</span>
-                {% else %}
-                <span
-                    class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-sky-100 text-sky-700 border border-sky-200 uppercase text-right">OD</span>
-                {% endif %}
+            <div class="flex items-center gap-2 mb-2">
+                <span class="w-1.5 h-1.5 bg-emerald-600 rounded-full"></span>
+                <h3 class="font-semibold text-gray-900 text-sm">{{ ag.motorista.nome }}</h3>
             </div>
             <div class="space-y-1 text-xs text-gray-600">
                 <div class="flex items-center gap-1.5">

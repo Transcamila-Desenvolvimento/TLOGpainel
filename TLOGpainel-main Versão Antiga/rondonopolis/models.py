@@ -169,36 +169,63 @@ class Agendamento(models.Model):
     def atualizar_status_geral(self, usuario=None):
         """
         Atualiza automaticamente o status_geral com base nas etapas concluídas.
-        Ordem do processo: Onda (pode ser a qualquer momento, mas obrigatória antes do armazém) → Portaria → CheckList → Armazém → Documentos
-        Pode receber o usuário atual para registrar quem fez a última ação.
+        
+        Fluxo COLETA: Portaria -> CheckList -> Onda -> Armazém -> Documentos
+        Fluxo ENTREGA: Portaria -> Armazém -> Documentos (Pula CheckList e Onda)
         """
-        # Processo completo: todas as etapas concluídas incluindo documentos
-        if self.onda_liberacao and self.armazem_chegada and self.documentos_liberacao:
-            novo_status = 'processo_concluido'
-        # Armazém confirmado mas documentos não liberados → pendente documentos
+        is_entrega = (self.tipo == 'entrega')
+        
+        # 1. Processo Concluído (Comum a ambos)
+        # Se documentos liberados, acabou
+        if self.documentos_liberacao:
+             # Para ter chegado aqui, deve ter passado pelo armazém
+            if self.armazem_chegada:
+                novo_status = 'processo_concluido'
+            else:
+                # Caso inconsistente, mas mantém lógica anterior
+                novo_status = 'processo_concluido'
+                
+        # 2. Pendente Documentos (Comum a ambos - já passou no armazém)
         elif self.armazem_chegada and not self.documentos_liberacao:
             novo_status = 'pendente_liberacao_documentos'
-        # Armazém confirmado mas onda não liberada (não deveria acontecer, mas mantém para compatibilidade)
-        elif self.armazem_chegada and not self.onda_liberacao:
-            novo_status = 'pendente_liberacao_onda'
-        # Armazém confirmado (e onda já estava liberada antes)
-        elif self.armazem_chegada:
-            novo_status = 'confirmacao_armazem'
-        # CheckList feito E onda liberada E armazém NÃO confirmado → aguardando confirmação no armazém
-        elif self.checklist_data and self.onda_liberacao and not self.armazem_chegada:
-            novo_status = 'confirmacao_armazem'
-        # CheckList feito mas onda não liberada → pendente liberação de onda
-        elif self.checklist_data and not self.onda_liberacao:
-            novo_status = 'pendente_liberacao_onda'
-        # CheckList feito (mas sem onda liberada ainda, caso especial)
-        elif self.checklist_data:
-            novo_status = 'em_checklist'
-        # Portaria liberada (próximo passo é checklist)
-        elif self.portaria_liberacao:
-            novo_status = 'em_checklist'
-        # Ainda não passou pela portaria
+
+        # 3. Lógica específica por tipo antes do Armazém
+        elif is_entrega:
+            # Fluxo ENTREGA: Portaria -> Armazém
+            
+            # Se já passou na portaria, vai direto para aguardar armazém
+            # (Não tem checklist nem onda)
+            if self.portaria_liberacao:
+                novo_status = 'confirmacao_armazem' # Aguardando confirmação no armazém
+            else:
+                novo_status = 'aguardando_chegada'
+                
         else:
-            novo_status = 'aguardando_chegada'
+            # Fluxo COLETA (Padrão): Portaria -> CheckList -> Onda -> Armazém
+            
+            # Armazém confirmado mas onda não liberada (não deveria acontecer, mas mantém)
+            if self.armazem_chegada and not self.onda_liberacao:
+                novo_status = 'pendente_liberacao_onda'
+                
+            # CheckList feito E onda liberada E armazém NÃO confirmado → aguardando confirmação no armazém
+            elif self.checklist_data and self.onda_liberacao and not self.armazem_chegada:
+                novo_status = 'confirmacao_armazem'
+                
+            # CheckList feito mas onda não liberada → pendente liberação de onda
+            elif self.checklist_data and not self.onda_liberacao:
+                novo_status = 'pendente_liberacao_onda'
+                
+            # CheckList feito (status transitório)
+            elif self.checklist_data:
+                novo_status = 'pendente_liberacao_onda' # Assumindo que precisa de onda
+                
+            # Portaria liberada (próximo passo é checklist)
+            elif self.portaria_liberacao:
+                novo_status = 'em_checklist'
+                
+            # Ainda não passou pela portaria
+            else:
+                novo_status = 'aguardando_chegada'
 
         if self.status_geral != novo_status:
             self.status_geral = novo_status
@@ -388,3 +415,33 @@ class NotificacaoProcesso(models.Model):
     
     def __str__(self):
         return f"{self.get_tipo_display()} - {self.agendamento.ordem} - {self.enviado_em.strftime('%d/%m/%Y %H:%M')}"
+
+
+class ControleAtualizacao(models.Model):
+    """
+    Modelo tecnico para controlar atualizacoes em tempo real (Long Polling Inteligente).
+    Substitui o cache de memoria para garantir funcionamento no PythonAnywhere (multi-worker).
+    """
+    TELA_CHOICES = [
+        ('portaria', 'Portaria'),
+        ('checklist', 'CheckList'),
+        ('onda', 'Liberacao de Onda'),
+        ('armazem', 'Armazem'),
+        ('armazem', 'Armazem'),
+        ('liberacao-documentos', 'Documentos'),
+        ('liberacao_documentos', 'Documentos (Legacy)'),
+        ('agendamentos', 'Agendamentos (Lista)'),
+        ('dashboard', 'Dashboard'),
+        ('painel', 'Painel TV'),
+    ]
+
+    tela = models.CharField(max_length=50, choices=TELA_CHOICES, unique=True, db_index=True)
+    ultima_atualizacao = models.DateTimeField(auto_now=True)
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Controle de Atualizacao'
+        verbose_name_plural = 'Controle de Atualizacoes'
+
+    def __str__(self):
+        return f"{self.tela} - {self.ultima_atualizacao}"

@@ -446,7 +446,7 @@
         </div>
 
         <!-- Checklist -->
-        <div class="bg-white p-4 rounded-lg border border-gray-200">
+        <div id="section-checklist" class="bg-white p-4 rounded-lg border border-gray-200">
           <h4 class="text-md font-semibold text-gray-900 mb-3 flex items-center">
             <i class="bi bi-clipboard-check mr-2 text-sky-600"></i> Checklist
           </h4>
@@ -468,7 +468,7 @@
         </div>
 
         <!-- Onda -->
-        <div class="bg-white p-4 rounded-lg border border-gray-200">
+        <div id="section-onda" class="bg-white p-4 rounded-lg border border-gray-200">
           <h4 class="text-md font-semibold text-gray-900 mb-3 flex items-center">
             <i class="bi bi-file-text mr-2 text-sky-600"></i> Onda/OD
           </h4>
@@ -910,6 +910,23 @@ function preencherFormularioGerenciar(agendamento) {
             console.error('Erro ao converter datetime:', e);
             return datetimeStr;
         }
+    }
+
+    // LÓGICA DE EXIBIÇÃO POR TIPO
+    // Entrega = 3 processos (Portaria -> Armazém -> Documentos)
+    // Coleta = 5 processos (Portaria -> Checklist -> Onda -> Armazém -> Documentos)
+    
+    const sectionChecklist = document.getElementById('section-checklist');
+    const sectionOnda = document.getElementById('section-onda');
+    
+    if (agendamento.tipo === 'entrega') {
+        // Ocultar Checklist e Onda para Entrega
+        if (sectionChecklist) sectionChecklist.classList.add('hidden');
+        if (sectionOnda) sectionOnda.classList.add('hidden');
+    } else {
+        // Mostrar para Coleta (ou outros)
+        if (sectionChecklist) sectionChecklist.classList.remove('hidden');
+        if (sectionOnda) sectionOnda.classList.remove('hidden');
     }
     
     // Portaria - converter para o fuso local do navegador

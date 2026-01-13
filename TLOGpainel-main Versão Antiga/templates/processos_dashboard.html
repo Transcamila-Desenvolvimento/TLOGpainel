@@ -211,62 +211,116 @@
     </div>
   </div>
 
-  <!-- Tabela de Tempos Médios -->
-  <div class="bg-white rounded border border-slate-200 p-6 mb-6">
-    <div class="flex items-center justify-between mb-5">
-      <h3 class="text-sm font-medium text-slate-700">Tempos Médios entre Operações</h3>
+  <!-- Tabelas de Tempos Médios - Separadas por Tipo -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+    <!-- Tempos Médios - Coleta -->
+    <div class="bg-white rounded border border-slate-200 p-6">
+      <div class="flex items-center justify-between mb-5">
+        <h3 class="text-sm font-medium text-slate-700">Tempo Médio entre Operações - Coleta</h3>
+        <span class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">Coleta</span>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-slate-200">
+              <th class="text-left py-3 px-4 font-medium text-slate-600">Etapa</th>
+              <th class="text-right py-3 px-4 font-medium text-slate-600">Tempo Médio</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            <tr>
+              <td class="py-3 px-4 text-slate-700">Portaria → Checklist</td>
+              <td class="py-3 px-4 text-right text-slate-800 font-medium">
+                {% if tempo_medio_coleta_portaria_checklist.texto != '-' %}
+                  <span class="font-mono">{{ tempo_medio_coleta_portaria_checklist.texto }}</span>
+                {% else %}
+                  <span class="text-slate-400">-</span>
+                {% endif %}
+              </td>
+            </tr>
+            <tr>
+              <td class="py-3 px-4 text-slate-700">Checklist → Armazém</td>
+              <td class="py-3 px-4 text-right text-slate-800 font-medium">
+                {% if tempo_medio_coleta_checklist_armazem.texto != '-' %}
+                  <span class="font-mono">{{ tempo_medio_coleta_checklist_armazem.texto }}</span>
+                {% else %}
+                  <span class="text-slate-400">-</span>
+                {% endif %}
+              </td>
+            </tr>
+            <tr>
+              <td class="py-3 px-4 text-slate-700">Armazém → Documentos</td>
+              <td class="py-3 px-4 text-right text-slate-800 font-medium">
+                {% if tempo_medio_coleta_armazem_documentos.texto != '-' %}
+                  <span class="font-mono">{{ tempo_medio_coleta_armazem_documentos.texto }}</span>
+                {% else %}
+                  <span class="text-slate-400">-</span>
+                {% endif %}
+              </td>
+            </tr>
+            <tr class="bg-slate-50">
+              <td class="py-3 px-4 text-slate-800 font-medium">Tempo Total do Processo</td>
+              <td class="py-3 px-4 text-right text-slate-900 font-semibold">
+                {% if tempo_medio_coleta_total.texto != '-' %}
+                  <span class="font-mono">{{ tempo_medio_coleta_total.texto }}</span>
+                {% else %}
+                  <span class="text-slate-400">-</span>
+                {% endif %}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
-    <div class="overflow-x-auto">
-      <table class="w-full text-sm">
-        <thead>
-          <tr class="border-b border-slate-200">
-            <th class="text-left py-3 px-4 font-medium text-slate-600">Etapa</th>
-            <th class="text-right py-3 px-4 font-medium text-slate-600">Tempo Médio</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-slate-100">
-          <tr>
-            <td class="py-3 px-4 text-slate-700">Portaria → Checklist</td>
-            <td class="py-3 px-4 text-right text-slate-800 font-medium">
-              {% if tempo_medio_portaria_checklist.texto != '-' %}
-                <span class="font-mono">{{ tempo_medio_portaria_checklist.texto }}</span>
-              {% else %}
-                <span class="text-slate-400">-</span>
-              {% endif %}
-            </td>
-          </tr>
-          <tr>
-            <td class="py-3 px-4 text-slate-700">Checklist → Armazém</td>
-            <td class="py-3 px-4 text-right text-slate-800 font-medium">
-              {% if tempo_medio_checklist_armazem.texto != '-' %}
-                <span class="font-mono">{{ tempo_medio_checklist_armazem.texto }}</span>
-              {% else %}
-                <span class="text-slate-400">-</span>
-              {% endif %}
-            </td>
-          </tr>
-          <tr>
-            <td class="py-3 px-4 text-slate-700">Armazém → Documentos</td>
-            <td class="py-3 px-4 text-right text-slate-800 font-medium">
-              {% if tempo_medio_armazem_documentos.texto != '-' %}
-                <span class="font-mono">{{ tempo_medio_armazem_documentos.texto }}</span>
-              {% else %}
-                <span class="text-slate-400">-</span>
-              {% endif %}
-            </td>
-          </tr>
-          <tr class="bg-slate-50">
-            <td class="py-3 px-4 text-slate-800 font-medium">Tempo Total do Processo</td>
-            <td class="py-3 px-4 text-right text-slate-900 font-semibold">
-              {% if tempo_medio_total.texto != '-' %}
-                <span class="font-mono">{{ tempo_medio_total.texto }}</span>
-              {% else %}
-                <span class="text-slate-400">-</span>
-              {% endif %}
-            </td>
-          </tr>
-        </tbody>
-      </table>
+
+    <!-- Tempos Médios - Entrega -->
+    <div class="bg-white rounded border border-slate-200 p-6">
+      <div class="flex items-center justify-between mb-5">
+        <h3 class="text-sm font-medium text-slate-700">Tempo Médio entre Operações - Entrega</h3>
+        <span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">Entrega</span>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-slate-200">
+              <th class="text-left py-3 px-4 font-medium text-slate-600">Etapa</th>
+              <th class="text-right py-3 px-4 font-medium text-slate-600">Tempo Médio</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            <tr>
+              <td class="py-3 px-4 text-slate-700">Portaria → Armazém</td>
+              <td class="py-3 px-4 text-right text-slate-800 font-medium">
+                {% if tempo_medio_entrega_portaria_armazem.texto != '-' %}
+                  <span class="font-mono">{{ tempo_medio_entrega_portaria_armazem.texto }}</span>
+                {% else %}
+                  <span class="text-slate-400">-</span>
+                {% endif %}
+              </td>
+            </tr>
+            <tr>
+              <td class="py-3 px-4 text-slate-700">Armazém → Documentos</td>
+              <td class="py-3 px-4 text-right text-slate-800 font-medium">
+                {% if tempo_medio_entrega_armazem_documentos.texto != '-' %}
+                  <span class="font-mono">{{ tempo_medio_entrega_armazem_documentos.texto }}</span>
+                {% else %}
+                  <span class="text-slate-400">-</span>
+                {% endif %}
+              </td>
+            </tr>
+            <tr class="bg-slate-50">
+              <td class="py-3 px-4 text-slate-800 font-medium">Tempo Total do Processo</td>
+              <td class="py-3 px-4 text-right text-slate-900 font-semibold">
+                {% if tempo_medio_entrega_total.texto != '-' %}
+                  <span class="font-mono">{{ tempo_medio_entrega_total.texto }}</span>
+                {% else %}
+                  <span class="text-slate-400">-</span>
+                {% endif %}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 

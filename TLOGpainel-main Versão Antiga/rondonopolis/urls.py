@@ -25,6 +25,14 @@ urlpatterns = [
     path('checklist/atualizar-dados/', views.checklist_atualizar_dados, name='checklist_atualizar_dados'),
     path('checklist/preencher/', views.preencher_checklist, name='preencher_checklist'),
 
+    # ==================== SMART UPDATE API ====================
+    path('api/verificar-atualizacoes/', views.verificar_atualizacoes, name='verificar_atualizacoes'),
+    path('portaria/tabela/', views.portaria_tabela, name='portaria_tabela'),
+    path('checklist/tabela/', views.checklist_tabela, name='checklist_tabela'),
+    path('onda/tabela/', views.onda_tabela, name='onda_tabela'),
+    path('armazem/tabela/', views.armazem_tabela, name='armazem_tabela'),
+    path('liberacao-documentos/tabela/', views.documentos_tabela, name='documentos_tabela'),
+
     # ==================== ARMAZÉM ====================
     path('armazem/', views.armazem, name='armazem'),
     path('armazem/atualizar-dados/', views.armazem_atualizar_dados, name='armazem_atualizar_dados'),

@@ -70,7 +70,7 @@ def get_etapas_processo(agendamento):
         'nome': 'Portaria',
         'concluida': bool(agendamento.portaria_liberacao),
         'data': agendamento.portaria_liberacao,
-        'usuario': agendamento.portaria_liberado_por.get_full_name() if agendamento.portaria_liberado_por else None,
+        'usuario': (agendamento.portaria_liberado_por.get_full_name() or agendamento.portaria_liberado_por.username) if agendamento.portaria_liberado_por else None,
     })
     
     # Checklist - APENAS PARA COLETA
@@ -79,36 +79,54 @@ def get_etapas_processo(agendamento):
             'nome': 'CheckList',
             'concluida': bool(agendamento.checklist_data),
             'data': agendamento.checklist_data,
-            'usuario': agendamento.checklist_preenchido_por.get_full_name() if agendamento.checklist_preenchido_por else None,
+            'usuario': (agendamento.checklist_preenchido_por.get_full_name() or agendamento.checklist_preenchido_por.username) if agendamento.checklist_preenchido_por else None,
             'numero': agendamento.checklist_numero,
         })
+    
+    # Onda / OD - Agora ambos têm esta etapa
+    etapas.append({
+        'nome': 'Onda' if agendamento.tipo == 'coleta' else 'OD',
+        'concluida': bool(agendamento.onda_liberacao),
+        'data': agendamento.onda_liberacao,
+        'usuario': (agendamento.onda_liberado_por.get_full_name() or agendamento.onda_liberado_por.username) if agendamento.onda_liberado_por else None,
+        'status': agendamento.get_onda_status_display(),
+    })
     
     # Armazém - sempre presente
     etapas.append({
         'nome': 'Armazém',
         'concluida': bool(agendamento.armazem_chegada),
         'data': agendamento.armazem_chegada,
-        'usuario': agendamento.armazem_confirmado_por.get_full_name() if agendamento.armazem_confirmado_por else None,
+        'usuario': (agendamento.armazem_confirmado_por.get_full_name() or agendamento.armazem_confirmado_por.username) if agendamento.armazem_confirmado_por else None,
     })
-    
-    # Onda - APENAS PARA COLETA
-    if agendamento.tipo == 'coleta':
-        etapas.append({
-            'nome': 'Onda',
-            'concluida': bool(agendamento.onda_liberacao),
-            'data': agendamento.onda_liberacao,
-            'usuario': agendamento.onda_liberado_por.get_full_name() if agendamento.onda_liberado_por else None,
-            'status': agendamento.get_onda_status_display(),
-        })
     
     # Documentos - sempre presente
     etapas.append({
         'nome': 'Documentos',
         'concluida': bool(agendamento.documentos_liberacao),
         'data': agendamento.documentos_liberacao,
-        'usuario': agendamento.documentos_liberado_por.get_full_name() if agendamento.documentos_liberado_por else None,
+        'usuario': (agendamento.documentos_liberado_por.get_full_name() or agendamento.documentos_liberado_por.username) if agendamento.documentos_liberado_por else None,
     })
     
+    # Identificar a primeira etapa pendente (não concluída) após todas as anteriores estarem concluídas
+    primeira_pendente_encontrada = False
+    todas_anteriores_concluidas = True
+    
+    for etapa in etapas:
+        # Se a etapa já foi concluída, continua
+        if etapa['concluida']:
+            etapa['is_proxima_pendente'] = False
+            continue
+            
+        # Se a etapa não foi concluída
+        if not primeira_pendente_encontrada and todas_anteriores_concluidas:
+            etapa['is_proxima_pendente'] = True
+            primeira_pendente_encontrada = True
+            todas_anteriores_concluidas = False
+        else:
+            etapa['is_proxima_pendente'] = False
+            todas_anteriores_concluidas = False
+
     return etapas
 
 
@@ -184,17 +202,20 @@ def _enviar_notificacao_etapa_sync(agendamento_id, etapa_nome, usuario_acao=None
         else:
             # Mapear etapa para grupo correspondente
             if agendamento.tipo == 'entrega':
-                # Fluxo ENTREGA: Portaria -> Armazém -> Documentos
+                # Fluxo ENTREGA: Portaria -> OD -> Armazém -> Documentos
                 etapa_para_grupo = {
-                    'portaria': 'armazem',                # Portaria libera -> vai para Armazém
-                    'armazem': 'liberacao_documentos',    # Armazém libera -> vai para Documentos
+                    'portaria': 'armazem',                # Portaria libera -> vai para Armazém (CORRIGIDO)
+                    'onda': 'armazem',                    # OD liberada (onda) -> vai para Armazém
+                    'armazem': 'documentos',              # Armazém libera -> vai para Documentos (MANTIDO)
+                    'armazem_saida': 'documentos',        # Armazém SAI -> vai para Documentos (NOVO)
                 }
             else:
                 # Fluxo COLETA: Portaria -> Checklist -> Armazém -> Documentos
                 etapa_para_grupo = {
                     'portaria': 'checklist',              # Quando libera portaria, notifica grupo checklist
                     'checklist': 'armazem',               # Quando completa checklist, notifica grupo armazém
-                    'armazem': 'liberacao_documentos',    # Quando entra no armazém, notifica grupo documentos
+                    'armazem': 'documentos',              # Quando entra no armazém, notifica grupo documentos (MANTIDO POR COMPATIBILIDADE)
+                    'armazem_saida': 'documentos',        # Quando SAI do armazém, notifica grupo documentos (NOVO FLUXO)
                 }
             
             grupo_proxima_etapa = etapa_para_grupo.get(etapa_nome)
@@ -216,6 +237,29 @@ def _enviar_notificacao_etapa_sync(agendamento_id, etapa_nome, usuario_acao=None
             if not usuarios_grupo.exists():
                 logger.info(f"Nenhum usuário ativo no grupo {grupo.get_nome_display()}")
                 return
+        
+        # --- LÓGICA DE ADMINS ---
+        # Buscar admins (superusers) ativos para receberem TODAS as notificações
+        try:
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            admins = User.objects.filter(is_superuser=True, is_active=True)
+            
+            # Combinar usuários do grupo com admins de forma segura
+            user_ids = set()
+            
+            if usuarios_grupo is not None:
+                user_ids.update(usuarios_grupo.values_list('id', flat=True))
+                
+            user_ids.update(admins.values_list('id', flat=True))
+            
+            # Re-consultar usuários para ter um QuerySet limpo e único
+            usuarios_grupo = User.objects.filter(id__in=user_ids)
+        except Exception as e:
+            logger.error(f"Erro ao incluir admins na notificação: {e}")
+            # Em caso de erro, continua apenas com o grupo original
+            pass
+        # ------------------------
         
         # Gerar conteúdo do email passando a etapa concluída e usuário que fez a ação
         email_data = gerar_email_processo(agendamento, etapa_concluida=etapa_nome, usuario_acao=usuario_acao)
@@ -269,6 +313,35 @@ def _enviar_notificacao_etapa_sync(agendamento_id, etapa_nome, usuario_acao=None
                 mensagem_whatsapp = (
                     f"Nova pendência identificada\n\n"
                     f"O motorista {agendamento.motorista.nome} entrou no Armazém e encontra-se pendente na etapa de Documentos.\n\n"
+                    f"Detalhes do veículo e serviço:\n\n"
+                    f"Placa: {agendamento.placa_veiculo}\n"
+                    f"Tipo de veículo: {agendamento.get_tipo_veiculo_display()}\n"
+                    f"Serviço: {agendamento.get_tipo_display()}\n"
+                    f"Transportadora: {agendamento.transportadora.nome}\n"
+                    f"{status_onda_linha}\n"
+                    f"TLOGpainel\n"
+                    f"Transcamila Cargas e Armazéns Gerais LTDA"
+                )
+            elif etapa_nome == 'armazem_saida':
+                # Determinar status da onda (apenas para coleta)
+                status_onda_linha = ""
+                if agendamento.tipo == 'coleta':
+                    if agendamento.onda_liberacao:
+                        status_onda = "LIBERADA"
+                    else:
+                        status_onda = "PENDENTE"
+                    status_onda_linha = f"Status da Onda: {status_onda}\n"
+                else:
+                    # Para entrega (OD)
+                    if agendamento.onda_liberacao:
+                        status_onda = "LIBERADA"
+                    else:
+                        status_onda = "PENDENTE"
+                    status_onda_linha = f"Status da OD: {status_onda}\n"
+                
+                mensagem_whatsapp = (
+                    f"Nova pendência identificada\n\n"
+                    f"O motorista {agendamento.motorista.nome} SAIU do Armazém e encontra-se pendente na etapa de Documentos.\n\n"
                     f"Detalhes do veículo e serviço:\n\n"
                     f"Placa: {agendamento.placa_veiculo}\n"
                     f"Tipo de veículo: {agendamento.get_tipo_veiculo_display()}\n"
@@ -479,6 +552,9 @@ def _enviar_notificacao_etapa_sync(agendamento_id, etapa_nome, usuario_acao=None
                             etapa_enviado = 'armazem'
                         elif etapa_nome == 'armazem':
                             mensagem_erro = f"Nova pendência: {agendamento.motorista.nome} - {agendamento.placa_veiculo} aguardando Liberação de Documentos"
+                            etapa_enviado = 'liberacao_documentos'
+                        elif etapa_nome == 'armazem_saida':
+                            mensagem_erro = f"Nova pendência: {agendamento.motorista.nome} - {agendamento.placa_veiculo} aguardando Liberação de Documentos (Saída Armazém)"
                             etapa_enviado = 'liberacao_documentos'
                         else:
                             mensagem_erro = f"Novo processo {agendamento.ordem} atualizado"

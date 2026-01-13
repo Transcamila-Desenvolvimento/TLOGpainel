@@ -38,8 +38,8 @@ def timezone_now():
     # Converter de UTC para o fuso horário de Rondonópolis
     now_rdn = now_utc.astimezone(TIMEZONE_RONDONOPOLIS)
     
-    # Retornar como naive (sem timezone) para salvar diretamente no horário de Rondonópolis
-    return now_rdn.replace(tzinfo=None)
+    # Retornar como aware no fuso horário de Rondonópolis
+    return now_rdn
 
 
 def timezone_today():
@@ -882,10 +882,12 @@ def enviar_email_pendencias_ondas():
     """
     try:
         # Buscar agendamentos com pendências de onda (sem liberação de onda)
+        # APENAS COLETA - Entrega não requer liberação de onda
         hoje = timezone_today()
         pendencias = Agendamento.objects.filter(
             data_agendada=hoje,
-            onda_liberacao__isnull=True
+            onda_liberacao__isnull=True,
+            tipo='coleta'
         ).select_related('motorista', 'transportadora').order_by('horario_agendado')
         
         # Se não houver pendências, não enviar email

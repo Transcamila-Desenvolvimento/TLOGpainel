@@ -175,7 +175,8 @@
             </td>
           </tr>
 
-          <!-- Onda (Seção Separada) -->
+          {# Onda (Seção Separada) - APENAS PARA COLETA #}
+          {% if agendamento.tipo == 'coleta' %}
           <tr>
             <td style="padding:0 32px 24px;">
               <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f0f9ff; border-left:4px solid #3b82f6; border-radius:4px; padding:16px;">
@@ -198,6 +199,7 @@
               </table>
             </td>
           </tr>
+          {% endif %}
 
           <!-- Observações -->
           {% if agendamento.observacoes %}

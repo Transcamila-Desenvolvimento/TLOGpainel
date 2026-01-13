@@ -137,6 +137,15 @@
           Você está liberando <span id="quantidade-selecionados"></span> veículo(s) de uma vez.
         </p>
       </div>
+
+      <!-- Campo de Observação (Opcional) -->
+      <div id="campo-observacao-container" class="mt-4">
+        <label for="observacao-documentos" class="block text-xs md:text-sm font-medium text-gray-700 mb-1">Observação
+          (Opcional)</label>
+        <textarea id="observacao-documentos" rows="3"
+          class="w-full px-3 md:px-4 py-2 border border-gray-300 rounded-md focus:ring-sky-500 focus:border-sky-500 text-sm md:text-base"
+          placeholder="Digite uma observação sobre a liberação de documentos..."></textarea>
+      </div>
     </div>
   </div>
 </div>
@@ -441,6 +450,9 @@
             const modal = document.getElementById('modal-formulario');
             modal.classList.remove('hidden');
 
+            // Limpar observação
+            document.getElementById('observacao-documentos').value = '';
+
             limparEventListenersSwipe();
             resetarSwipeButton();
             setTimeout(inicializarSwipeButton, 150);
@@ -596,6 +608,10 @@
       fd.append('ids[]', id);
     }
     fd.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+    // Adicionar observação
+    const obs = document.getElementById('observacao-documentos').value;
+    if (obs) fd.append('observacao', obs);
 
     const r = await fetch('/rondonopolis/liberacao-documentos/registrar-liberacao/', { method: 'POST', body: fd });
     const d = await r.json();

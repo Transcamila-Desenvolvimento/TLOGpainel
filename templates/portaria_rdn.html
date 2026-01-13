@@ -16,7 +16,7 @@
 <!-- Abas -->
 <div class="mb-4 border-b border-gray-200">
   <nav class="-mb-px flex justify-between sm:justify-start sm:space-x-4 md:space-x-8">
-    <button id="tab-agendados"
+    <button id="tab-agendados" onclick="alternarAba('agendados')"
       class="tab-button py-2 md:py-3 px-1 sm:px-2 md:px-1 border-b-2 font-medium text-sm sm:text-xs md:text-sm flex items-center gap-1 sm:gap-1.5 md:gap-2 flex-1 sm:flex-initial justify-center sm:justify-start border-sky-500 text-sky-600">
       <i class="bi bi-clock-history text-sm sm:text-sm md:text-base"></i>
       <span>Agendados</span>
@@ -24,7 +24,7 @@
         class="bg-sky-100 text-sky-600 text-xs sm:text-xs font-medium px-1 sm:px-1.5 md:px-2 py-0.5 rounded-full ml-0.5"
         data-badge="agendados">{{ total_agendamentos }}</span>
     </button>
-    <button id="tab-liberados"
+    <button id="tab-liberados" onclick="alternarAba('liberados')"
       class="tab-button py-2 md:py-3 px-1 sm:px-2 md:px-1 border-b-2 font-medium text-sm sm:text-xs md:text-sm flex items-center gap-1 sm:gap-1.5 md:gap-2 flex-1 sm:flex-initial justify-center sm:justify-start border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
       <i class="bi bi-check-circle text-sm sm:text-sm md:text-base"></i>
       <span>Liberados</span>
@@ -33,7 +33,7 @@
         data-badge="liberados">{{ total_liberados }}</span>
     </button>
     <!-- NOVA ABA PARA TELEFONES -->
-    <button id="tab-telefones"
+    <button id="tab-telefones" onclick="alternarAba('telefones')"
       class="tab-button py-2 md:py-3 px-1 sm:px-2 md:px-1 border-b-2 font-medium text-sm sm:text-xs md:text-sm flex items-center gap-1 sm:gap-1.5 md:gap-2 flex-1 sm:flex-initial justify-center sm:justify-start border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
       <i class="bi bi-telephone text-sm sm:text-sm md:text-base"></i>
       <span>Telefones</span>
@@ -74,9 +74,13 @@
         class="flex items-center gap-2 bg-sky-600 hover:bg-sky-700 text-white text-sm px-3 py-1.5 rounded-md transition-colors duration-200">
         <i class="bi bi-megaphone"></i> Chamar Motorista
       </button>
-      <button onclick="confirmarChegadaSelecionado()"
+      <button id="btn-confirmar-chegada-desktop" onclick="confirmarChegadaSelecionado()"
         class="flex items-center gap-2 bg-sky-600 hover:bg-sky-700 text-white text-sm px-3 py-1.5 rounded-md transition-colors duration-200">
         <i class="bi bi-check-lg"></i> Confirmar Chegada
+      </button>
+      <button id="btn-confirmar-armazem-desktop" onclick="confirmarArmazemSelecionado()" style="display: none;"
+        class="flex items-center gap-2 bg-sky-600 hover:bg-sky-700 text-white text-sm px-3 py-1.5 rounded-md transition-colors duration-200">
+        <i class="bi bi-building-check"></i> Confirmar Armazém
       </button>
     </div>
   </div>
@@ -241,19 +245,26 @@
     <table class="min-w-full text-[14px]">
       <thead>
         <tr class="text-gray-800 text-xs border-b border-gray-200 uppercase tracking-wide">
+          <th class="py-2 px-3 text-left font-medium w-8"></th>
           <th class="py-2 px-3 text-left font-medium">Motorista</th>
           <th class="py-2 px-3 text-left font-medium">Horário Agendado</th>
           <th class="py-2 px-3 text-left font-medium">Chegada</th>
           <th class="py-2 px-3 text-left font-medium">Placa do Veículo</th>
           <th class="py-2 px-3 text-left font-medium">Tipo de Veículo</th>
           <th class="py-2 px-3 text-left font-medium">Transportadora</th>
+          <th class="py-2 px-3 text-left font-medium">Entrada Armazém</th>
         </tr>
       </thead>
       <tbody id="tabela-liberados">
         {% for liberado in liberados %}
         <tr class="border-b border-gray-100 hover:bg-gray-50 liberado-row" id="liberado-{{ liberado.id }}"
           data-motorista="{{ liberado.motorista.nome|lower }}" data-placa="{{ liberado.placa_veiculo|lower }}"
-          data-transportadora="{{ liberado.transportadora.nome|lower }}">
+          data-transportadora="{{ liberado.transportadora.nome|lower }}"
+          data-armazem="{% if liberado.portaria_chegada_armazem %}1{% else %}0{% endif %}">
+          <td class="py-2 px-3">
+            <input type="checkbox" name="agendamento_selecionado" value="{{ liberado.id }}"
+              class="agendamento-checkbox rounded border-gray-300 text-sky-600 focus:ring-sky-500">
+          </td>
           <td class="py-2 px-3 font-medium text-gray-900">
             <div class="flex items-center gap-2">
               <span class="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
@@ -287,10 +298,24 @@
           <td class="py-2 px-3 font-mono text-gray-800">{{ liberado.placa_veiculo }}</td>
           <td class="py-2 px-3">{{ liberado.get_tipo_veiculo_display }}</td>
           <td class="py-2 px-3">{{ liberado.transportadora.nome }}</td>
+          <td class="py-2 px-3">
+            {% if liberado.portaria_chegada_armazem %}
+            <div class="flex items-center gap-1.5 text-emerald-600">
+              <i class="bi bi-building-check text-sm"></i>
+              <span class="text-xs">
+                {% timezone "America/Cuiaba" %}
+                {{ liberado.portaria_chegada_armazem|date:"d/m H:i" }}
+                {% endtimezone %}
+              </span>
+            </div>
+            {% else %}
+            <span class="text-gray-400 text-xs">-</span>
+            {% endif %}
+          </td>
         </tr>
         {% empty %}
         <tr>
-          <td colspan="6" class="py-4 text-center text-gray-400 text-[14px]">Nenhum veículo liberado hoje</td>
+          <td colspan="8" class="py-4 text-center text-gray-400 text-[14px]">Nenhum veículo liberado hoje</td>
         </tr>
         {% endfor %}
       </tbody>
@@ -364,6 +389,27 @@
           </div>
         </div>
       </div>
+      <div class="flex flex-col gap-1.5 pt-2 border-t border-gray-100">
+        <button onclick="carregarDetalhesAgendamento('{{ liberado.id }}', 'detalhes')"
+          class="w-full flex items-center justify-center gap-2 bg-white hover:bg-gray-50 text-gray-700 text-xs px-3 py-2 rounded-md border border-gray-300 transition-colors">
+          <i class="bi bi-eye"></i>
+          Ver Detalhes
+        </button>
+        {% if liberado.motorista.telefone %}
+        <button onclick="chamarMotoristaIndividual('{{ liberado.id }}')"
+          class="w-full flex items-center justify-center gap-2 bg-sky-600 hover:bg-sky-700 text-white text-xs px-3 py-2 rounded-md transition-colors">
+          <i class="bi bi-megaphone"></i>
+          Chamar Motorista
+        </button>
+        {% endif %}
+        {% if not liberado.portaria_chegada_armazem %}
+        <button onclick="abrirModalConfirmarArmazem('{{ liberado.id }}', '{{ liberado.placa_veiculo|escapejs }}')"
+          class="w-full flex items-center justify-center gap-2 bg-sky-600 hover:bg-sky-700 text-white text-xs px-3 py-2 rounded-md transition-colors">
+          <i class="bi bi-building-check"></i>
+          Confirmar Armazém
+        </button>
+        {% endif %}
+      </div>
     </div>
     {% empty %}
     <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
@@ -412,7 +458,7 @@
             </td>
             <td class="py-3 px-4">
               <button
-                onclick="abrirModalEditarTelefone('{{ motorista.id|escapejs }}', '{{ motorista.nome|escapejs }}', '{{ motorista.telefone|default:''|escapejs }}')"
+                onclick="abrirModalEditarTelefone('{{ motorista.id|escapejs }}', '{{ motorista.nome|escapejs }}', '{{ motorista.telefone|default:None|escapejs }}')"
                 class="flex items-center gap-2 bg-sky-600 hover:bg-sky-700 text-white text-sm px-3 py-1.5 rounded-md transition-colors duration-200">
                 <i class="bi bi-pencil"></i>
                 Editar Telefone
@@ -445,7 +491,7 @@
           </div>
         </div>
         <button
-          onclick="abrirModalEditarTelefone('{{ motorista.id|escapejs }}', '{{ motorista.nome|escapejs }}', '{{ motorista.telefone|default:''|escapejs }}')"
+          onclick="abrirModalEditarTelefone('{{ motorista.id|escapejs }}', '{{ motorista.nome|escapejs }}', '{{ motorista.telefone|default:None|escapejs }}')"
           class="w-full flex items-center justify-center gap-2 bg-sky-600 hover:bg-sky-700 text-white text-sm px-3 py-2 rounded-md transition-colors duration-200">
           <i class="bi bi-pencil"></i>
           Editar Telefone
@@ -579,6 +625,78 @@
 </div>
 </div>
 
+
+<!-- Modal para confirmar chegada no armazém -->
+<div id="modal-confirmar-armazem"
+  class="hidden fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-[70] p-4">
+  <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-auto max-h-[95vh] overflow-y-auto">
+    <div class="flex justify-between items-center p-4 md:p-6 border-b border-gray-200 sticky top-0 bg-white z-10">
+      <h3 class="text-lg md:text-xl font-semibold text-gray-900">Confirmar Entrada no Armazém</h3>
+      <button onclick="fecharModalConfirmarArmazem()" class="text-gray-400 hover:text-gray-500">
+        <i class="bi bi-x-lg text-xl"></i>
+      </button>
+    </div>
+
+    <div class="p-4 md:p-6">
+      <div class="mb-4 md:mb-6">
+        <p class="text-xs md:text-sm text-gray-600 mb-4 md:mb-6 text-center">Arraste para o lado para confirmar a
+          entrada no armazém</p>
+
+        <div class="swipe-container mb-6 md:mb-8">
+          <div
+            class="swipe-track-armazem bg-gray-100 rounded-full h-10 md:h-12 relative overflow-hidden border border-gray-300">
+            <div
+              class="swipe-thumb-armazem absolute left-1 top-1 h-8 w-8 md:h-10 md:w-10 bg-white rounded-full flex items-center justify-center cursor-grab active:cursor-grabbing shadow-md border border-gray-200 z-10 transition-all duration-200 hover:shadow-lg">
+              <i class="bi bi-arrow-right text-sky-600 text-base md:text-lg"></i>
+            </div>
+            <div class="swipe-text-armazem absolute inset-0 flex items-center justify-center">
+              <span class="text-gray-500 font-medium text-xs md:text-sm">Deslize para confirmar</span>
+            </div>
+            <div
+              class="swipe-progress-armazem absolute inset-0 bg-gradient-to-r from-sky-500 to-sky-600 rounded-full scale-x-0 origin-left transition-transform duration-300">
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-gray-50 p-3 md:p-4 rounded-lg mb-3 md:mb-4">
+          <label class="block text-xs md:text-sm font-medium text-gray-500 mb-2">Horário de Entrada no Armazém</label>
+          <div class="w-full px-2 md:px-3 py-3 md:py-4 border-2 border-sky-500 rounded-md bg-white text-center">
+            <div id="relogio-armazem" class="text-gray-900 text-2xl md:text-3xl font-bold font-mono tracking-wider">
+              --:--:--
+            </div>
+            <div class="text-xs text-gray-500 mt-1">Atualiza automaticamente</div>
+          </div>
+          <input type="hidden" id="relogio-armazem-hidden">
+        </div>
+      </div>
+
+      <div
+        class="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 text-xs md:text-sm bg-sky-50 p-3 md:p-4 rounded-lg border border-sky-100">
+        <div>
+          <p class="font-medium text-gray-500 mb-1">Motorista</p>
+          <p id="armazem-motorista" class="text-gray-900 font-medium"></p>
+        </div>
+        <div>
+          <p class="font-medium text-gray-500 mb-1">Placa do Veículo</p>
+          <p id="armazem-placa" class="font-mono text-gray-900 font-medium"></p>
+        </div>
+        <div>
+          <p class="font-medium text-gray-500 mb-1">Tipo de Veículo</p>
+          <p id="armazem-tipo-veiculo" class="text-gray-900 font-medium"></p>
+        </div>
+        <div>
+          <p class="font-medium text-gray-500 mb-1">Transportadora</p>
+          <p id="armazem-transportadora" class="text-gray-900 font-medium"></p>
+        </div>
+        <div>
+          <p class="font-medium text-gray-500 mb-1">Tipo de Serviço</p>
+          <p id="armazem-tipo" class="text-gray-900 font-medium"></p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Modal para editar telefone -->
 <div id="modal-editar-telefone"
   class="hidden fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-[60] p-2 md:p-4">
@@ -683,46 +801,65 @@
     touch-action: pan-y;
   }
 
-  .swipe-track {
+  .swipe-track,
+  .swipe-track-chamar,
+  .swipe-track-armazem {
     position: relative;
     background: #f8fafc;
     transition: all 0.3s ease;
   }
 
-  .swipe-track.success {
+  .swipe-track.success,
+  .swipe-track-chamar.success,
+  .swipe-track-armazem.success {
     background: #f0f9ff;
     border-color: #0ea5e9;
   }
 
-  .swipe-thumb {
+  .swipe-thumb,
+  .swipe-thumb-chamar,
+  .swipe-thumb-armazem {
     transition: transform 0.15s ease, box-shadow 0.15s ease;
     z-index: 10;
   }
 
-  .swipe-thumb.dragging {
+  .swipe-thumb.dragging,
+  .swipe-thumb-chamar.dragging,
+  .swipe-thumb-armazem.dragging {
     transform: scale(1.05);
     box-shadow: 0 4px 12px rgba(14, 165, 233, 0.25);
   }
 
-  .swipe-thumb.success {
+  .swipe-thumb.success,
+  .swipe-thumb-chamar.success,
+  .swipe-thumb-armazem.success {
     background: #10b981;
     transform: scale(1);
   }
 
-  .swipe-thumb.success i {
+  .swipe-thumb.success i,
+  .swipe-thumb-chamar.success i,
+  .swipe-thumb-armazem.success i {
     color: white;
   }
 
-  .swipe-text {
+  .swipe-text,
+  .swipe-text-chamar,
+  .swipe-text-armazem {
     transition: all 0.3s ease;
     z-index: 5;
+    pointer-events: none;
   }
 
-  .swipe-progress {
+  .swipe-progress,
+  .swipe-progress-chamar,
+  .swipe-progress-armazem {
     transition: transform 0.3s ease;
   }
 
-  .swipe-thumb:hover {
+  .swipe-thumb:hover,
+  .swipe-thumb-chamar:hover,
+  .swipe-thumb-armazem:hover {
     box-shadow: 0 4px 12px rgba(14, 165, 233, 0.2);
     transform: translateY(-1px);
   }
@@ -1118,10 +1255,21 @@
     document.getElementById('tab-liberados').addEventListener('click', () => alternarAba('liberados'));
     document.getElementById('tab-telefones').addEventListener('click', () => alternarAba('telefones'));
 
+    // Restaurar aba ativa se houver (para retornos de confirmação)
+    const abaSalva = sessionStorage.getItem('portaria_aba_ativa');
+    if (abaSalva) {
+      alternarAba(abaSalva);
+      sessionStorage.removeItem('portaria_aba_ativa');
+    }
+
     // Checkbox desktop - usar event delegation para evitar problemas com atualizações dinâmicas
     const tbodyAgendamentos = document.getElementById('tabela-agendamentos');
     if (tbodyAgendamentos) {
       tbodyAgendamentos.addEventListener('change', handleCheckboxChange);
+    }
+    const tbodyLiberados = document.getElementById('tabela-liberados');
+    if (tbodyLiberados) {
+      tbodyLiberados.addEventListener('change', handleCheckboxChange);
     }
 
     // Barra de pesquisa
@@ -1194,6 +1342,37 @@
     const isDesktop = window.innerWidth >= 768;
     if (agendamentoSelecionadoId && isDesktop) {
       container.classList.remove('hidden');
+
+      // Controlar visibilidade dos botões baseado na aba ativa
+      const btnConfirmarChegada = document.getElementById('btn-confirmar-chegada-desktop');
+      const btnConfirmarArmazem = document.getElementById('btn-confirmar-armazem-desktop');
+
+      if (abaAtual === 'liberados') {
+        // Na aba Liberados, verificar se o veículo já foi confirmado no armazém
+        const row = document.getElementById(`liberado-${agendamentoSelecionadoId}`);
+        let jaConfirmado = false;
+
+        if (row) {
+          // Verificar se a linha tem o timestamp de confirmação
+          const confirmacaoCell = row.querySelector('td:nth-child(8)'); // Coluna de Confirmação Armazém
+          if (confirmacaoCell) {
+            const temTimestamp = confirmacaoCell.querySelector('.text-emerald-600');
+            jaConfirmado = temTimestamp !== null;
+          }
+        }
+
+        // Esconder botão de confirmar chegada
+        if (btnConfirmarChegada) btnConfirmarChegada.style.display = 'none';
+
+        // Mostrar botão de confirmar armazém apenas se não foi confirmado
+        if (btnConfirmarArmazem) {
+          btnConfirmarArmazem.style.display = jaConfirmado ? 'none' : 'flex';
+        }
+      } else {
+        // Na aba Agendados, mostrar botão de confirmar chegada
+        if (btnConfirmarChegada) btnConfirmarChegada.style.display = 'flex';
+        if (btnConfirmarArmazem) btnConfirmarArmazem.style.display = 'none';
+      }
     } else {
       container.classList.add('hidden');
     }
@@ -1206,7 +1385,34 @@
 
   function confirmarChegadaSelecionado() {
     if (!agendamentoSelecionadoId) return mostrarMensagemAviso('Selecione um agendamento.');
-    carregarDetalhesAgendamento(agendamentoSelecionadoId, 'confirmacao');
+
+    if (abaAtual === 'liberados') {
+      // Para liberados, usar o modal simples de confirmação de armazém
+      const row = document.getElementById(`liberado-${agendamentoSelecionadoId}`);
+      if (row) {
+        const placa = row.getAttribute('data-placa') || '';
+        abrirModalConfirmarArmazem(agendamentoSelecionadoId, placa);
+      } else {
+        // Fallback se não achar a linha (raro)
+        mostrarMensagemErro('Erro ao identificar veículo.');
+      }
+    } else {
+      // Para agendados, usar o modal de swipe (fluxo original)
+      carregarDetalhesAgendamento(agendamentoSelecionadoId, 'confirmacao');
+    }
+  }
+
+  function confirmarArmazemSelecionado() {
+    if (!agendamentoSelecionadoId) return mostrarMensagemAviso('Selecione um veículo.');
+
+    // Buscar a placa do veículo selecionado
+    const row = document.getElementById(`liberado-${agendamentoSelecionadoId}`);
+    if (row) {
+      const placa = row.getAttribute('data-placa') || '';
+      abrirModalConfirmarArmazem(agendamentoSelecionadoId, placa);
+    } else {
+      mostrarMensagemErro('Erro ao identificar veículo.');
+    }
   }
 
   function chamarMotoristaSelecionado() {
@@ -1782,13 +1988,265 @@
     motoristaEditando = null;
   }
 
+  // FUNÇÕES PARA CONFIRMAÇÃO DE ARMAZÉM
+  let agendamentoParaConfirmarArmazem = null;
+  let isDraggingArmazem = false;
+  let startXArmazem = 0;
+  let currentXArmazem = 0;
+  let trackWidthArmazem = 0;
+  let thumbWidthArmazem = 0;
+  let swipeMouseMoveHandlerArmazem = null;
+  let swipeMouseUpHandlerArmazem = null;
+  let swipeTouchMoveHandlerArmazem = null;
+  let swipeTouchEndHandlerArmazem = null;
+
+  function abrirModalConfirmarArmazem(agendamentoId, placa) {
+    agendamentoParaConfirmarArmazem = agendamentoId;
+
+    // Buscar dados completos do agendamento via AJAX
+    fetch(`/rondonopolis/portaria/detalhes/?id=${agendamentoId}`, {
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          const ag = data.agendamento;
+
+          // Preencher dados no modal
+          document.getElementById('armazem-motorista').textContent = ag.motorista || '-';
+          document.getElementById('armazem-placa').textContent = ag.placa_veiculo || '-';
+          document.getElementById('armazem-tipo-veiculo').textContent = ag.tipo_veiculo || '-';
+          document.getElementById('armazem-transportadora').textContent = ag.transportadora || '-';
+          document.getElementById('armazem-tipo').textContent = ag.tipo === 'coleta' ? 'Coleta' : 'Entrega';
+
+          // Abrir modal
+          const modal = document.getElementById('modal-confirmar-armazem');
+          if (modal) {
+            modal.classList.remove('hidden');
+            modal.setAttribute('data-agendamento-id', agendamentoId);
+
+            // Inicializar swipe após um pequeno delay
+            setTimeout(() => {
+              inicializarSwipeArmazem();
+            }, 100);
+          }
+        } else {
+          mostrarMensagemErro('Erro ao carregar dados do veículo');
+        }
+      })
+      .catch(err => {
+        console.error('Erro ao buscar dados:', err);
+        mostrarMensagemErro('Erro ao carregar dados do veículo');
+      });
+  }
+
+  function fecharModalConfirmarArmazem() {
+    const modal = document.getElementById('modal-confirmar-armazem');
+    if (modal) {
+      modal.classList.add('hidden');
+      limparEventListenersSwipeArmazem();
+      resetarSwipeArmazem();
+      modal.removeAttribute('data-agendamento-id');
+      agendamentoParaConfirmarArmazem = null;
+    }
+  }
+
+  function limparEventListenersSwipeArmazem() {
+    if (swipeMouseMoveHandlerArmazem) {
+      document.removeEventListener('mousemove', swipeMouseMoveHandlerArmazem);
+      swipeMouseMoveHandlerArmazem = null;
+    }
+    if (swipeMouseUpHandlerArmazem) {
+      document.removeEventListener('mouseup', swipeMouseUpHandlerArmazem);
+      swipeMouseUpHandlerArmazem = null;
+    }
+    if (swipeTouchMoveHandlerArmazem) {
+      document.removeEventListener('touchmove', swipeTouchMoveHandlerArmazem);
+      swipeTouchMoveHandlerArmazem = null;
+    }
+    if (swipeTouchEndHandlerArmazem) {
+      document.removeEventListener('touchend', swipeTouchEndHandlerArmazem);
+      swipeTouchEndHandlerArmazem = null;
+    }
+  }
+
+  function inicializarSwipeArmazem() {
+    const track = document.querySelector('.swipe-track-armazem');
+    const thumb = document.querySelector('.swipe-thumb-armazem');
+    if (!track || !thumb) return;
+
+    limparEventListenersSwipeArmazem();
+    resetarSwipeArmazem();
+    trackWidthArmazem = track.offsetWidth;
+    thumbWidthArmazem = thumb.offsetWidth;
+    const maxDrag = trackWidthArmazem - thumbWidthArmazem - 8;
+
+    const mouseDownHandler = (e) => {
+      isDraggingArmazem = true;
+      startXArmazem = e.clientX - thumb.getBoundingClientRect().left;
+      thumb.classList.add('dragging');
+    };
+
+    swipeMouseMoveHandlerArmazem = (e) => {
+      if (!isDraggingArmazem) return;
+      currentXArmazem = e.clientX - track.getBoundingClientRect().left - startXArmazem;
+      currentXArmazem = Math.max(0, Math.min(currentXArmazem, maxDrag));
+      thumb.style.transform = `translateX(${currentXArmazem}px)`;
+      const p = currentXArmazem / maxDrag;
+      const progress = document.querySelector('.swipe-progress-armazem');
+      const text = document.querySelector('.swipe-text-armazem');
+      if (progress) progress.style.transform = `scaleX(${p})`;
+      if (currentXArmazem > maxDrag * 0.7) {
+        track.classList.add('success');
+        if (text) text.innerHTML = '<span class="text-white font-medium text-xs">Solte para confirmar</span>';
+      } else {
+        track.classList.remove('success');
+        if (text) text.innerHTML = '<span class="text-gray-500 font-medium text-xs">Deslize para confirmar</span>';
+      }
+    };
+
+    swipeMouseUpHandlerArmazem = () => {
+      if (!isDraggingArmazem) return;
+      isDraggingArmazem = false;
+      thumb.classList.remove('dragging');
+      if (currentXArmazem > maxDrag * 0.8) {
+        const idParaConfirmar = agendamentoParaConfirmarArmazem || document.getElementById('modal-confirmar-armazem').getAttribute('data-agendamento-id');
+        thumb.style.transform = `translateX(${maxDrag}px)`;
+        thumb.classList.add('success');
+        const progress = document.querySelector('.swipe-progress-armazem');
+        const text = document.querySelector('.swipe-text-armazem');
+        if (progress) progress.style.transform = 'scaleX(1)';
+        if (text) text.innerHTML = '<span class="text-white font-medium text-xs">Confirmando!</span>';
+        const i = thumb.querySelector('i');
+        if (i) i.className = 'bi bi-check-lg text-white check-animation';
+        fecharModalConfirmarArmazem();
+        setTimeout(() => {
+          if (idParaConfirmar) executarConfirmacaoArmazem(idParaConfirmar);
+        }, 300);
+      } else {
+        resetarSwipeArmazem();
+      }
+    };
+
+    const touchStartHandler = (e) => {
+      isDraggingArmazem = true;
+      startXArmazem = e.touches[0].clientX - thumb.getBoundingClientRect().left;
+      thumb.classList.add('dragging');
+    };
+
+    swipeTouchMoveHandlerArmazem = (e) => {
+      if (!isDraggingArmazem) return;
+      currentXArmazem = e.touches[0].clientX - track.getBoundingClientRect().left - startXArmazem;
+      currentXArmazem = Math.max(0, Math.min(currentXArmazem, maxDrag));
+      thumb.style.transform = `translateX(${currentXArmazem}px)`;
+      const p = currentXArmazem / maxDrag;
+      const progress = document.querySelector('.swipe-progress-armazem');
+      const text = document.querySelector('.swipe-text-armazem');
+      if (progress) progress.style.transform = `scaleX(${p})`;
+      if (currentXArmazem > maxDrag * 0.7) {
+        track.classList.add('success');
+        if (text) text.innerHTML = '<span class="text-white font-medium text-xs">Solte para confirmar</span>';
+      } else {
+        track.classList.remove('success');
+        if (text) text.innerHTML = '<span class="text-gray-500 font-medium text-xs">Deslize para confirmar</span>';
+      }
+    };
+
+    swipeTouchEndHandlerArmazem = () => {
+      if (!isDraggingArmazem) return;
+      isDraggingArmazem = false;
+      thumb.classList.remove('dragging');
+      if (currentXArmazem > maxDrag * 0.8) {
+        const idParaConfirmar = agendamentoParaConfirmarArmazem || document.getElementById('modal-confirmar-armazem').getAttribute('data-agendamento-id');
+        thumb.style.transform = `translateX(${maxDrag}px)`;
+        thumb.classList.add('success');
+        const progress = document.querySelector('.swipe-progress-armazem');
+        const text = document.querySelector('.swipe-text-armazem');
+        if (progress) progress.style.transform = 'scaleX(1)';
+        if (text) text.innerHTML = '<span class="text-white font-medium text-xs">Confirmando!</span>';
+        const i = thumb.querySelector('i');
+        if (i) i.className = 'bi bi-check-lg text-white check-animation';
+        fecharModalConfirmarArmazem();
+        setTimeout(() => {
+          if (idParaConfirmar) executarConfirmacaoArmazem(idParaConfirmar);
+        }, 300);
+      } else {
+        resetarSwipeArmazem();
+      }
+    };
+
+    thumb.addEventListener('mousedown', mouseDownHandler);
+    document.addEventListener('mousemove', swipeMouseMoveHandlerArmazem);
+    document.addEventListener('mouseup', swipeMouseUpHandlerArmazem);
+    thumb.addEventListener('touchstart', touchStartHandler);
+    document.addEventListener('touchmove', swipeTouchMoveHandlerArmazem);
+    document.addEventListener('touchend', swipeTouchEndHandlerArmazem);
+  }
+
+  function resetarSwipeArmazem() {
+    const track = document.querySelector('.swipe-track-armazem');
+    const thumb = document.querySelector('.swipe-thumb-armazem');
+    const progress = document.querySelector('.swipe-progress-armazem');
+    const text = document.querySelector('.swipe-text-armazem');
+    if (!thumb) return;
+    thumb.style.transform = 'translateX(0)';
+    if (track) track.classList.remove('success');
+    thumb.classList.remove('success', 'dragging');
+    if (progress) progress.style.transform = 'scaleX(0)';
+    if (text) text.innerHTML = '<span class="text-gray-500 font-medium text-xs">Deslize para confirmar</span>';
+    const icon = thumb.querySelector('i');
+    if (icon) icon.className = 'bi bi-arrow-right text-sky-600';
+    isDraggingArmazem = false;
+    currentXArmazem = 0;
+  }
+
+  function executarConfirmacaoArmazem(agendamentoId) {
+    // Obter horário do campo hidden
+    const horario = document.getElementById('relogio-armazem-hidden').value;
+
+    const formData = new FormData();
+    formData.append('agendamento_id', agendamentoId);
+    formData.append('horario', horario);
+    formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+    fetch('{% url "rondonopolis:confirmar_chegada_armazem_portaria" %}', {
+      method: 'POST',
+      body: formData,
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest'
+      }
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          mostrarMensagemSucesso(data.message || 'Entrada no armazém confirmada com sucesso!');
+          // Salvar aba ativa antes de recarregar
+          sessionStorage.setItem('portaria_aba_ativa', 'liberados');
+          // Recarregar a página para atualizar a interface e mostrar o timestamp
+          setTimeout(() => {
+            window.location.reload();
+          }, 1500);
+        } else {
+          mostrarMensagemErro(data.error || 'Erro ao confirmar entrada no armazém');
+        }
+      })
+      .catch(error => {
+        mostrarMensagemErro('Erro de conexão ao confirmar chegada no armazém');
+        console.error('Erro:', error);
+      });
+  }
+
+
   // Relógio em tempo real para Rondonópolis (sincronizado com o servidor)
   let offsetServidor = 0; // Diferença em milissegundos entre o cliente e o servidor
 
   function atualizarRelogio() {
     const relogioElement = document.getElementById('confirmacao-horario');
     const hiddenElement = document.getElementById('confirmacao-horario-hidden');
-    if (relogioElement) {
+    const relogioArmazem = document.getElementById('relogio-armazem');
+    const hiddenArmazem = document.getElementById('relogio-armazem-hidden');
+
+    if (relogioElement || relogioArmazem) {
       // Usar o horário do servidor ajustado pelo offset
       const agora = new Date(Date.now() + offsetServidor);
       const opcoes = {
@@ -1800,10 +2258,11 @@
       };
       const horarioCompleto = agora.toLocaleTimeString('pt-BR', { ...opcoes, second: '2-digit' });
       const horarioSemSegundos = agora.toLocaleTimeString('pt-BR', { ...opcoes });
-      relogioElement.textContent = horarioCompleto;
-      if (hiddenElement) {
-        hiddenElement.value = horarioSemSegundos;
-      }
+
+      if (relogioElement) relogioElement.textContent = horarioCompleto;
+      if (hiddenElement) hiddenElement.value = horarioSemSegundos;
+      if (relogioArmazem) relogioArmazem.textContent = horarioCompleto;
+      if (hiddenArmazem) hiddenArmazem.value = horarioSemSegundos;
     }
   }
 
@@ -2079,7 +2538,7 @@
     tbody.innerHTML = '';
 
     if (liberados.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="6" class="py-4 text-center text-gray-400 text-[14px]">Nenhum veículo liberado hoje</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="8" class="py-4 text-center text-gray-400 text-[14px]">Nenhum veículo liberado hoje</td></tr>';
       return;
     }
 
@@ -2090,6 +2549,8 @@
       tr.setAttribute('data-motorista', liberado.motorista.toLowerCase());
       tr.setAttribute('data-placa', liberado.placa_veiculo.toLowerCase());
       tr.setAttribute('data-transportadora', liberado.transportadora.toLowerCase());
+      // ATRIBUTO PARA ORDENAÇÃO FORÇADA
+      tr.setAttribute('data-armazem', liberado.portaria_chegada_armazem ? '1' : '0');
 
       const tipoBadge = liberado.tipo === 'coleta'
         ? '<span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-blue-700 bg-blue-50 text-xs font-medium border border-blue-100 ml-1">Coleta</span>'
@@ -2103,7 +2564,27 @@
         ? new Date(liberado.portaria_liberacao).toLocaleString('pt-BR', { timeZone: 'America/Cuiaba' })
         : '-';
 
+      // Formatar confirmação do armazém
+      let confirmacaoArmazem = '<span class="text-gray-400 text-xs">-</span>';
+      if (liberado.portaria_chegada_armazem) {
+        const dataConfirmacao = new Date(liberado.portaria_chegada_armazem);
+        const dia = String(dataConfirmacao.getDate()).padStart(2, '0');
+        const mes = String(dataConfirmacao.getMonth() + 1).padStart(2, '0');
+        const hora = String(dataConfirmacao.getHours()).padStart(2, '0');
+        const minuto = String(dataConfirmacao.getMinutes()).padStart(2, '0');
+        confirmacaoArmazem = `
+          <div class="flex items-center gap-1.5 text-emerald-600">
+            <i class="bi bi-building-check text-sm"></i>
+            <span class="text-xs">${dia}/${mes} ${hora}:${minuto}</span>
+          </div>
+        `;
+      }
+
       tr.innerHTML = `
+            <td class="py-2 px-3">
+              <input type="checkbox" name="agendamento_selecionado" value="${liberado.id}"
+                class="agendamento-checkbox rounded border-gray-300 text-sky-600 focus:ring-sky-500">
+            </td>
             <td class="py-2 px-3 font-medium text-gray-900">
                 <div class="flex items-center gap-2">
                     <span class="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
@@ -2116,10 +2597,44 @@
             <td class="py-2 px-3 font-mono text-gray-800">${liberado.placa_veiculo}</td>
             <td class="py-2 px-3">${liberado.tipo_veiculo}</td>
             <td class="py-2 px-3">${liberado.transportadora}</td>
+            <td class="py-2 px-3">${confirmacaoArmazem}</td>
         `;
 
       tbody.appendChild(tr);
     });
+
+    // FORÇAR ORDENAÇÃO VISUAL (NUCLEAR OPTION)
+    enforceOrdenacaoNuclear();
+  }
+
+  // Função para garantir ordenação visual no cliente
+  function enforceOrdenacaoNuclear() {
+    const tbody = document.getElementById('tabela-liberados');
+    if (!tbody) return;
+
+    const rows = Array.from(tbody.querySelectorAll('tr.liberado-row'));
+    if (rows.length === 0) return;
+
+    // Separar em dois grupos
+    const semArmazem = [];
+    const comArmazem = [];
+
+    rows.forEach(row => {
+      const temArmazem = row.getAttribute('data-armazem') === '1';
+      if (temArmazem) {
+        comArmazem.push(row);
+      } else {
+        semArmazem.push(row);
+      }
+    });
+
+    // Re-inserir no DOM na ordem correta
+    // 1. Sem Armazem (Topo)
+    semArmazem.forEach(row => tbody.appendChild(row));
+    // 2. Com Armazem (Fundo)
+    comArmazem.forEach(row => tbody.appendChild(row));
+
+    // console.log("Ordenação Nuclear Aplicada via JS:", { sem: semArmazem.length, com: comArmazem.length });
   }
 
   // Função para atualizar cards mobile
@@ -2253,6 +2768,33 @@
       ? new Date(liberado.portaria_liberacao).toLocaleString('pt-BR', { timeZone: 'America/Cuiaba' })
       : '-';
 
+    // Formatar confirmação do armazém
+    let confirmacaoArmazemHtml = '';
+    if (liberado.portaria_chegada_armazem) {
+      const dataConfirmacao = new Date(liberado.portaria_chegada_armazem);
+      const dia = String(dataConfirmacao.getDate()).padStart(2, '0');
+      const mes = String(dataConfirmacao.getMonth() + 1).padStart(2, '0');
+      const hora = String(dataConfirmacao.getHours()).padStart(2, '0');
+      const minuto = String(dataConfirmacao.getMinutes()).padStart(2, '0');
+      confirmacaoArmazemHtml = `
+        <div class="flex items-center gap-2">
+          <i class="bi bi-building-check text-emerald-600"></i>
+          <span class="text-emerald-600 text-xs">Armazém: ${dia}/${mes} ${hora}:${minuto}</span>
+        </div>
+      `;
+    }
+
+    // Botão de ação condicional - só mostrar se não foi confirmado
+    let acaoButtonHtml = '';
+    if (!liberado.portaria_chegada_armazem) {
+      acaoButtonHtml = `
+        <button onclick="abrirModalConfirmarArmazem('${liberado.id}', '${liberado.placa_veiculo}')" class="w-full flex items-center justify-center gap-2 bg-sky-600 hover:bg-sky-700 text-white text-xs px-3 py-2 rounded-md transition-colors">
+          <i class="bi bi-building-check"></i>
+          Confirmar Armazém
+        </button>
+      `;
+    }
+
     card.innerHTML = `
         <div class="flex items-center gap-2 mb-2">
             <span class="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
@@ -2268,6 +2810,7 @@
                 <i class="bi bi-check-circle text-emerald-600"></i>
                 <span class="text-emerald-600">Liberado: ${dataLiberacao}</span>
             </div>
+            ${confirmacaoArmazemHtml}
             <div class="flex items-center gap-2">
                 <i class="bi bi-truck text-gray-400"></i>
                 <span class="font-mono">${liberado.placa_veiculo}</span>
@@ -2290,10 +2833,18 @@
             </div>
             ` : ''}
         </div>
+        <div class="flex flex-col gap-1.5 pt-2 border-t border-gray-100">
+            <button onclick="carregarDetalhesAgendamento('${liberado.id}', 'detalhes')" class="w-full flex items-center justify-center gap-2 bg-white hover:bg-gray-50 text-gray-700 text-xs px-3 py-2 rounded-md border border-gray-300 transition-colors">
+                <i class="bi bi-eye"></i>
+                Ver Detalhes
+            </button>
+            ${acaoButtonHtml}
+        </div>
     `;
 
     return card;
   }
+
 
   // Função para remover agendamento da interface
   function removerAgendamentoDaInterface(agendamentoId) {
@@ -2452,8 +3003,49 @@
     // Inicializar Smart Update para a tela 'portaria'
     SmartUpdate.init('portaria');
 
-    // Observer para restaurar estado após atualização do SmartUpdate
-    const containerAgendados = document.getElementById('conteudo-agendados');
+    // FORÇAR ORDENAÇÃO NA CARGA INICIAL
+    setTimeout(enforceOrdenacaoNuclear, 500);
+
+    // Observer para Tabela de Liberados (Garantir ordenação se o HTML for substituído)
+    const tbodyLiberados = document.getElementById('tabela-liberados');
+    let observerLiberados = null;
+
+    // Função para iniciar o observer
+    function startObserver() {
+      if (!tbodyLiberados) return;
+      if (observerLiberados) observerLiberados.disconnect();
+
+      observerLiberados = new MutationObserver(function (mutations) {
+        let shouldSort = false;
+        mutations.forEach(m => {
+          // Só queremos reagir se houver adição de nós (smart update substituiu a tabela)
+          // Ignorar alterações de atributo (como classes mudando ao clicar)
+          if (m.type === 'childList' && m.addedNodes.length > 0) {
+            shouldSort = true;
+          }
+        });
+
+        if (shouldSort) {
+          // Desconecta temporariamente para não ouvir as próprias mudanças da ordenação
+          observerLiberados.disconnect();
+
+          // Pequeno delay para garantir que o DOM renderizou
+          setTimeout(() => {
+            enforceOrdenacaoNuclear();
+            // Reconecta após ordenar
+            startObserver();
+          }, 50);
+        }
+      });
+
+      observerLiberados.observe(tbodyLiberados, { childList: true });
+    }
+
+    if (tbodyLiberados) {
+      startObserver();
+    }
+
+    // Observer para restaurar estado após atualização do SmartUpdate (Agendados)
     if (containerAgendados) {
       const observer = new MutationObserver(function (mutations) {
         let updated = false;
@@ -2487,6 +3079,11 @@
       });
       observer.observe(containerAgendados, { childList: true, subtree: true });
     }
+
+    // Inicializar aba - verificar se deve restaurar aba Liberados
+    const abaParaAbrir = sessionStorage.getItem('portaria_aba_ativa') || 'agendados';
+    sessionStorage.removeItem('portaria_aba_ativa'); // Limpar após usar
+    alternarAba(abaParaAbrir);
   });
 </script>
 {% endblock %}
