@@ -1,4 +1,4 @@
-{% extends 'baserdn.html' %}
+﻿{% extends 'baserdn.html' %}
 {% load static %}
 {% load tz %}
 
@@ -64,9 +64,6 @@
           <option value="">Todos os motoristas</option>
           {% for motorista in motoristas %}
           <option value="{{ motorista.id }}" {% if request.GET.motorista|stringformat:"s" == motorista.id|stringformat:"s" %}selected{% endif %}>
-
-            {{ motorista.nome }}
-
             {{ motorista.nome }}
           </option>
           {% endfor %}
@@ -147,8 +144,7 @@
             <div class="flex items-center gap-3 text-sm">
               <div class="flex items-center gap-1">
                 <i class="bi bi-person text-gray-400 text-xs"></i>
-                <span class="text-gray-900 font-medium truncate">{{ agendamento.motorista.nome|truncatechars:15
-                  }}</span>
+                <span class="text-gray-900 font-medium truncate">{{ agendamento.motorista.nome|truncatechars:15 }}</span>
               </div>
               <div class="flex items-center gap-1">
                 <i class="bi bi-truck text-gray-400 text-xs"></i>
@@ -169,8 +165,7 @@
               </div>
               <div class="flex items-center gap-1">
                 <i class="bi bi-building text-gray-400 text-xs"></i>
-                <span class="text-gray-600 text-xs truncate">{{ agendamento.transportadora.nome|truncatechars:12
-                  }}</span>
+                <span class="text-gray-600 text-xs truncate">{{ agendamento.transportadora.nome|truncatechars:12 }}</span>
               </div>
             </div>
           </div>
@@ -192,10 +187,12 @@
                 data-action="exibir" data-id="{{ agendamento.id }}">
                 <i class="bi bi-eye mr-2 text-sky-600 text-xs"></i> Exibir
               </a>
+              {% if is_admin %}
               <a href="#" class="dropdown-item text-gray-700 flex items-center px-3 py-2 text-sm hover:bg-gray-100"
                 data-action="gerenciar" data-id="{{ agendamento.id }}">
                 <i class="bi bi-gear mr-2 text-sky-600 text-xs"></i> Gerenciar
               </a>
+              {% endif %}
               <a href="#" class="dropdown-item text-gray-700 flex items-center px-3 py-2 text-sm hover:bg-gray-100"
                 data-action="imprimir" data-id="{{ agendamento.id }}">
                 <i class="bi bi-printer mr-2 text-sky-600 text-xs"></i> Imprimir
@@ -221,8 +218,7 @@
 
           <!-- Linha azul até a etapa atual -->
           {% comment %} Calcular posição da linha azul baseado nas etapas concluídas {% endcomment %}
-          {% with etapas=agendamento_data.etapas_ordenadas total_etapas=agendamento_data.total_etapas
-          etapas_concluidas=agendamento_data.etapas_concluidas %}
+          {% with etapas=agendamento_data.etapas_ordenadas total_etapas=agendamento_data.total_etapas etapas_concluidas=agendamento_data.etapas_concluidas %}
           {% if etapas_concluidas == total_etapas %}
           {% comment %} Se todas estão concluídas, linha azul completa {% endcomment %}
           <div class="absolute top-3 left-0 right-0 h-0.5 bg-sky-600"></div>
@@ -278,6 +274,7 @@
     </div>
 
 
+    {% endwith %}
     {% empty %}
     <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center text-gray-500">
       <i class="bi bi-inbox text-3xl text-gray-300 mb-2"></i>
@@ -374,12 +371,12 @@
                   {% elif etapa.tipo == 'independente' %}bg-gray-300 text-gray-500
                   {% else %}bg-gray-200 text-gray-500{% endif %}">
                   {% if etapa.concluida %}
-                  <i class="bi bi-check text-xs"></i>
+                  <i class="bi bi-check text-xs font-bold"></i>
                   {% else %}
-                  {{ forloop.counter }}
+                  <span class="text-xs font-semibold">{{ forloop.counter }}</span>
                   {% endif %}
                 </div>
-                <span class="text-xs mt-1 text-gray-500 text-center">{{ etapa.nome|truncatechars:10 }}</span>
+                <span class="text-xs mt-1 text-gray-500 text-center">{{ etapa.nome }}</span>
               </div>
               {% endfor %}
             </div>
@@ -405,11 +402,13 @@
                       data-action="exibir" data-id="{{ agendamento.id }}">
                       <i class="bi bi-eye mr-3 text-sky-600"></i> Exibir
                     </a>
+                    {% if is_admin %}
                     <a href="#"
                       class="dropdown-item text-gray-700 flex items-center px-4 py-2 text-sm hover:bg-gray-100"
                       data-action="gerenciar" data-id="{{ agendamento.id }}">
                       <i class="bi bi-gear mr-3 text-sky-600"></i> Gerenciar
                     </a>
+                    {% endif %}
                     <a href="#"
                       class="dropdown-item text-gray-700 flex items-center px-4 py-2 text-sm hover:bg-gray-100"
                       data-action="imprimir" data-id="{{ agendamento.id }}">

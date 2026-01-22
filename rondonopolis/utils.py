@@ -684,6 +684,8 @@ def enviar_whatsapp_api(numero, mensagem):
         # Tentar diferentes formatos de API
         resultados = []
         
+        TIMEOUT_SECONDS = 5
+        
         # Formato 1: Whapi.Cloud (prioridade se detectado)
         if is_whapi:
             try:
@@ -698,50 +700,47 @@ def enviar_whatsapp_api(numero, mensagem):
                     "body": mensagem
                 }
                 print(f"[WHATSAPP API] Tentativa 1 - Whapi.Cloud: {url}")
-                response = requests.post(url, json=payload, headers=headers, timeout=10)
+                response = requests.post(url, json=payload, headers=headers, timeout=TIMEOUT_SECONDS)
                 print(f"[WHATSAPP API] Resposta Whapi.Cloud: {response.status_code}")
-                print(f"[WHATSAPP API] Resposta completa: {response.text[:200]}")
                 resultados.append(('Whapi.Cloud', response))
-                if response.status_code in [200, 201]:
-                    # Se funcionou, não precisa tentar outros formatos
-                    pass
+                return {
+                    'success': response.status_code in [200, 201],
+                    'message': 'Enviado via Whapi',
+                    'error': response.text if response.status_code not in [200, 201] else None
+                }
             except Exception as e:
                 error_msg = f"Tentativa Whapi.Cloud falhou: {e}"
                 logger.warning(error_msg)
                 print(f"[WHATSAPP API] {error_msg}")
+                # Se foi detectado como Whapi e falhou, provavelmente não adianta tentar Evolution
+                return {'success': False, 'error': error_msg}
         
         # Formato 2: Evolution API (padrão)
         sucesso_anterior = False
-        if resultados:
-            try:
-                sucesso_anterior = resultados[-1][1].status_code in [200, 201]
-            except:
-                pass
+        try:
+            url = f"{api_url.rstrip('/')}/message/sendText/{api_instance}"
+            headers = {
+                'Content-Type': 'application/json',
+                'apikey': api_key
+            }
+            payload = {
+                "number": numero_limpo,
+                "text": mensagem
+            }
+            print(f"[WHATSAPP API] Tentativa 2 - Evolution API: {url}")
+            response = requests.post(url, json=payload, headers=headers, timeout=TIMEOUT_SECONDS)
+            print(f"[WHATSAPP API] Resposta Evolution API: {response.status_code}")
+            resultados.append(('Evolution API', response))
+            if response.status_code in [200, 201]:
+                sucesso_anterior = True
+        except Exception as e:
+            error_msg = f"Tentativa Evolution API falhou: {e}"
+            logger.warning(error_msg)
+            print(f"[WHATSAPP API] {error_msg}")
         
-        if not sucesso_anterior:
-            try:
-                url = f"{api_url.rstrip('/')}/message/sendText/{api_instance}"
-                headers = {
-                    'Content-Type': 'application/json',
-                    'apikey': api_key
-                }
-                payload = {
-                    "number": numero_limpo,
-                    "text": mensagem
-                }
-                print(f"[WHATSAPP API] Tentativa 2 - Evolution API: {url}")
-                response = requests.post(url, json=payload, headers=headers, timeout=10)
-                print(f"[WHATSAPP API] Resposta Evolution API: {response.status_code}")
-                resultados.append(('Evolution API', response))
-                if response.status_code in [200, 201]:
-                    sucesso_anterior = True
-            except Exception as e:
-                error_msg = f"Tentativa Evolution API falhou: {e}"
-                logger.warning(error_msg)
-                print(f"[WHATSAPP API] {error_msg}")
-        
-        # Formato 3: Outros serviços com Bearer Token
+        # Formato 3: Outros serviços (fallback apenas se não for Whapi e Evolution falhar)
         if not sucesso_anterior and not is_whapi:
+            # Bearer Token API
             try:
                 url = f"{api_url.rstrip('/')}/messages/text"
                 headers = {
@@ -753,49 +752,33 @@ def enviar_whatsapp_api(numero, mensagem):
                     "body": mensagem
                 }
                 print(f"[WHATSAPP API] Tentativa 3 - Bearer Token API: {url}")
-                response = requests.post(url, json=payload, headers=headers, timeout=10)
+                response = requests.post(url, json=payload, headers=headers, timeout=TIMEOUT_SECONDS)
                 print(f"[WHATSAPP API] Resposta Bearer Token: {response.status_code}")
                 resultados.append(('Bearer Token API', response))
                 if response.status_code in [200, 201]:
                     sucesso_anterior = True
             except Exception as e:
                 logger.warning(f"Tentativa Bearer Token falhou: {e}")
-                print(f"[WHATSAPP API] Tentativa Bearer Token falhou: {e}")
-        
-        # Formato 3: API com token no header X-API-Key
-        if not sucesso_anterior:
-            try:
-                url = f"{api_url.rstrip('/')}/send"
-                headers = {
-                    'Content-Type': 'application/json',
-                    'X-API-Key': api_key
-                }
-                payload = {
-                    "phone": numero_limpo,
-                    "message": mensagem
-                }
-                response = requests.post(url, json=payload, headers=headers, timeout=10)
-                resultados.append(('X-API-Key API', response))
-                if response.status_code in [200, 201]:
-                    sucesso_anterior = True
-            except Exception as e:
-                logger.warning(f"Tentativa X-API-Key falhou: {e}")
-        
-        # Formato 4: API com token no query string
-        if not sucesso_anterior:
-            try:
-                url = f"{api_url.rstrip('/')}/send?token={api_key}"
-                headers = {
-                    'Content-Type': 'application/json'
-                }
-                payload = {
-                    "phone": numero_limpo,
-                    "message": mensagem
-                }
-                response = requests.post(url, json=payload, headers=headers, timeout=10)
-                resultados.append(('Query Token API', response))
-            except Exception as e:
-                logger.warning(f"Tentativa Query Token falhou: {e}")
+            
+            # X-API-Key API (se anterior falhou)
+            if not sucesso_anterior:
+                 try:
+                    url = f"{api_url.rstrip('/')}/send"
+                    headers = {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': api_key
+                    }
+                    payload = {
+                        "phone": numero_limpo,
+                        "message": mensagem
+                    }
+                    response = requests.post(url, json=payload, headers=headers, timeout=TIMEOUT_SECONDS)
+                    resultados.append(('X-API-Key API', response))
+                    if response.status_code in [200, 201]:
+                        sucesso_anterior = True
+                 except Exception as e:
+                     logger.warning(f"Tentativa X-API-Key falhou: {e}")
+
         
         # Verificar qual formato funcionou
         for formato, response in resultados:

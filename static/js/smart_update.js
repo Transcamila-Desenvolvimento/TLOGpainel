@@ -14,11 +14,12 @@ const SmartUpdate = {
     idleThreshold: 60000, // 60 segundos para considerar ocioso
 
     // Intervalos (ms)
+    // Intervalos (ms)
     intervals: {
-        active: 3000,      // 3s (Sensação Instantânea)
-        idle: 10000,       // 10s (Economia 70%)
-        hidden: 30000,     // 30s (Tab em segundo plano - Economia 90%)
-        error: 20000       // 20s (Se der erro no server, acalma)
+        active: 5000,      // 5s (Aumentado para aliviar load)
+        idle: 15000,       // 15s (Economia)
+        hidden: 60000,     // 60s (Tab em segundo plano)
+        error: 30000       // 30s (Se der erro no server, acalma)
     },
 
     init: function (tela) {
@@ -38,8 +39,7 @@ const SmartUpdate = {
                 // Se estava inativo e voltou, força update rápido pra atualizar a tela
                 console.log("👋 Usuário voltou! Acelerando updates...");
                 this.isUserActive = true;
-                // Opcional: reiniciar loop imediatamente? 
-                // Melhor deixar o próximo ciclo pegar o novo intervalo curto.
+                this.scheduleNext(500); // Reage rápido
             }
             this.lastActivityTime = Date.now();
         };
@@ -72,7 +72,10 @@ const SmartUpdate = {
 
     scheduleNext: function (ms) {
         if (this.timer) clearTimeout(this.timer);
-        this.timer = setTimeout(() => this.checkUpdates(), ms);
+        // Adicionar Jitter (aleatoriedade) para evitar "thundering herd"
+        // (Vários clientes pedindo update exatamente ao mesmo tempo)
+        const jitter = Math.random() * 2000; // 0 a 2000ms extra
+        this.timer = setTimeout(() => this.checkUpdates(), ms + jitter);
     },
 
     checkUpdates: function () {

@@ -1,22 +1,24 @@
 {% load tz %}
-<!-- Elementos de Navegação (para atualizar badges) -->
-<div id="tab-agendados" style="display:none;">
+
+<!-- ATUALIZAÇÃO DAS ABAS (BADGES) -->
+<!-- O Javascript pega o innerHTML desses elementos e substitui nos botões correspondentes -->
+<div id="tab-agendados">
   <i class="bi bi-clock-history text-sm sm:text-sm md:text-base"></i>
   <span>Agendados</span>
   <span class="bg-sky-100 text-sky-600 text-xs sm:text-xs font-medium px-1 sm:px-1.5 md:px-2 py-0.5 rounded-full ml-0.5"
-    data-badge="agendados">{{ agendamentos.count }}</span>
+    data-badge="agendados">{{ total_agendamentos }}</span>
 </div>
 
-<div id="tab-liberados" style="display:none;">
+<div id="tab-liberados">
   <i class="bi bi-check-circle text-sm sm:text-sm md:text-base"></i>
   <span>Liberados</span>
   <span
     class="bg-gray-100 text-gray-600 text-xs sm:text-xs font-medium px-1 sm:px-1.5 md:px-2 py-0.5 rounded-full ml-0.5"
-    data-badge="liberados">{{ liberados.count }}</span>
+    data-badge="liberados">{{ total_liberados }}</span>
 </div>
 
-<!-- Conteúdo Agendados -->
-<div id="conteudo-agendados">
+<!-- CONTEÚDO AGENDADOS -->
+<div id="conteudo-agendados" class="tab-content">
   <!-- Desktop: Tabela -->
   <div class="hidden md:block bg-white rounded-md overflow-hidden shadow-sm border border-gray-200">
     <table class="min-w-full text-[14px]">
@@ -24,7 +26,6 @@
         <tr class="text-gray-800 text-xs border-b border-gray-200 uppercase tracking-wide">
           <th class="py-2 px-3 text-left font-medium w-8"></th>
           <th class="py-2 px-3 text-left font-medium">Motorista</th>
-          <th class="py-2 px-3 text-left font-medium">Tipo de Serviço</th>
           <th class="py-2 px-3 text-left font-medium">Horário Agendado</th>
           <th class="py-2 px-3 text-left font-medium">Placa do Veículo</th>
           <th class="py-2 px-3 text-left font-medium">Transportadora</th>
@@ -44,16 +45,14 @@
             <div class="flex items-center gap-2">
               <span class="w-1.5 h-1.5 bg-sky-600 rounded-full"></span>
               {{ agendamento.motorista.nome }}
+              {% if agendamento.tipo == 'coleta' %}
+              <span
+                class="inline-flex items-center px-1.5 py-0.5 rounded-full text-blue-700 bg-blue-50 text-xs font-medium border border-blue-100 ml-1">Coleta</span>
+              {% else %}
+              <span
+                class="inline-flex items-center px-1.5 py-0.5 rounded-full text-emerald-700 bg-emerald-50 text-xs font-medium border border-emerald-100 ml-1">Entrega</span>
+              {% endif %}
             </div>
-          </td>
-          <td class="py-2 px-3">
-            {% if agendamento.tipo == 'coleta' %}
-            <span
-              class="inline-flex items-center px-1.5 py-0.5 rounded-full text-blue-700 bg-blue-50 text-xs font-medium border border-blue-100">Coleta</span>
-            {% else %}
-            <span
-              class="inline-flex items-center px-1.5 py-0.5 rounded-full text-blue-700 bg-blue-50 text-xs font-medium border border-blue-100">Entrega</span>
-            {% endif %}
           </td>
           <td class="py-2 px-3">
             <div class="flex flex-col">
@@ -74,7 +73,7 @@
         </tr>
         {% empty %}
         <tr>
-          <td colspan="7" class="py-4 text-center text-gray-400 text-[14px]">Nenhum agendamento para hoje</td>
+          <td colspan="6" class="py-4 text-center text-gray-400 text-[14px]">Nenhum agendamento para hoje</td>
         </tr>
         {% endfor %}
       </tbody>
@@ -97,7 +96,7 @@
             class="inline-flex items-center px-1.5 py-0.5 rounded-full text-blue-700 bg-blue-50 text-xs font-medium border border-blue-100">Coleta</span>
           {% else %}
           <span
-            class="inline-flex items-center px-1.5 py-0.5 rounded-full text-blue-700 bg-blue-50 text-xs font-medium border border-blue-100">Entrega</span>
+            class="inline-flex items-center px-1.5 py-0.5 rounded-full text-emerald-700 bg-emerald-50 text-xs font-medium border border-emerald-100">Entrega</span>
           {% endif %}
         </div>
         <div class="space-y-1 text-xs text-gray-600">
@@ -168,20 +167,21 @@
   </div>
 </div>
 
-<!-- Conteúdo Liberados -->
-<div id="conteudo-liberados">
+<!-- CONTEÚDO LIBERADOS -->
+<div id="conteudo-liberados" class="tab-content hidden">
   <!-- Desktop: Tabela -->
   <div class="hidden md:block bg-white rounded-md overflow-hidden shadow-sm border border-gray-200">
     <table class="min-w-full text-[14px]">
       <thead>
         <tr class="text-gray-800 text-xs border-b border-gray-200 uppercase tracking-wide">
+          <th class="py-2 px-3 text-left font-medium w-8"></th>
           <th class="py-2 px-3 text-left font-medium">Motorista</th>
-          <th class="py-2 px-3 text-left font-medium">Tipo de Serviço</th>
           <th class="py-2 px-3 text-left font-medium">Horário Agendado</th>
           <th class="py-2 px-3 text-left font-medium">Chegada</th>
           <th class="py-2 px-3 text-left font-medium">Placa do Veículo</th>
           <th class="py-2 px-3 text-left font-medium">Tipo de Veículo</th>
           <th class="py-2 px-3 text-left font-medium">Transportadora</th>
+          <th class="py-2 px-3 text-left font-medium">Entrada Armazém</th>
         </tr>
       </thead>
       <tbody id="tabela-liberados">
@@ -190,20 +190,22 @@
           data-motorista="{{ liberado.motorista.nome|lower }}" data-placa="{{ liberado.placa_veiculo|lower }}"
           data-transportadora="{{ liberado.transportadora.nome|lower }}"
           data-armazem="{% if liberado.portaria_chegada_armazem %}1{% else %}0{% endif %}">
+          <td class="py-2 px-3">
+            <input type="checkbox" name="agendamento_selecionado" value="{{ liberado.id }}"
+              class="agendamento-checkbox rounded border-gray-300 text-sky-600 focus:ring-sky-500">
+          </td>
           <td class="py-2 px-3 font-medium text-gray-900">
             <div class="flex items-center gap-2">
               <span class="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
               {{ liberado.motorista.nome }}
+              {% if liberado.tipo == 'coleta' %}
+              <span
+                class="inline-flex items-center px-1.5 py-0.5 rounded-full text-blue-700 bg-blue-50 text-xs font-medium border border-blue-100 ml-1">Coleta</span>
+              {% else %}
+              <span
+                class="inline-flex items-center px-1.5 py-0.5 rounded-full text-emerald-700 bg-emerald-50 text-xs font-medium border border-emerald-100 ml-1">Entrega</span>
+              {% endif %}
             </div>
-          </td>
-          <td class="py-2 px-3 text-gray-800">
-            {% if liberado.tipo == 'coleta' %}
-            <span
-              class="inline-flex items-center px-1.5 py-0.5 rounded-full text-blue-700 bg-blue-50 text-xs font-medium border border-blue-100">Coleta</span>
-            {% else %}
-            <span
-              class="inline-flex items-center px-1.5 py-0.5 rounded-full text-blue-700 bg-blue-50 text-xs font-medium border border-blue-100">Entrega</span>
-            {% endif %}
           </td>
           <td class="py-2 px-3 text-gray-800">
             {% if liberado.horario_agendado|time:"H:i" == "00:00" %}
@@ -225,10 +227,24 @@
           <td class="py-2 px-3 font-mono text-gray-800">{{ liberado.placa_veiculo }}</td>
           <td class="py-2 px-3">{{ liberado.get_tipo_veiculo_display }}</td>
           <td class="py-2 px-3">{{ liberado.transportadora.nome }}</td>
+          <td class="py-2 px-3">
+            {% if liberado.portaria_chegada_armazem %}
+            <div class="flex items-center gap-1.5 text-emerald-600">
+              <i class="bi bi-building-check text-sm"></i>
+              <span class="text-xs">
+                {% timezone "America/Cuiaba" %}
+                {{ liberado.portaria_chegada_armazem|date:"d/m H:i" }}
+                {% endtimezone %}
+              </span>
+            </div>
+            {% else %}
+            <span class="text-gray-400 text-xs">-</span>
+            {% endif %}
+          </td>
         </tr>
         {% empty %}
         <tr>
-          <td colspan="7" class="py-4 text-center text-gray-400 text-[14px]">Nenhum veículo liberado hoje</td>
+          <td colspan="8" class="py-4 text-center text-gray-400 text-[14px]">Nenhum veículo liberado hoje</td>
         </tr>
         {% endfor %}
       </tbody>
@@ -249,7 +265,7 @@
           class="inline-flex items-center px-1.5 py-0.5 rounded-full text-blue-700 bg-blue-50 text-xs font-medium border border-blue-100">Coleta</span>
         {% else %}
         <span
-          class="inline-flex items-center px-1.5 py-0.5 rounded-full text-blue-700 bg-blue-50 text-xs font-medium border border-blue-100">Entrega</span>
+          class="inline-flex items-center px-1.5 py-0.5 rounded-full text-emerald-700 bg-emerald-50 text-xs font-medium border border-emerald-100">Entrega</span>
         {% endif %}
       </div>
       <div class="space-y-1.5 text-xs text-gray-600">
@@ -301,6 +317,27 @@
             </div>
           </div>
         </div>
+      </div>
+      <div class="flex flex-col gap-1.5 pt-2 border-t border-gray-100">
+        <button onclick="carregarDetalhesAgendamento('{{ liberado.id }}', 'detalhes')"
+          class="w-full flex items-center justify-center gap-2 bg-white hover:bg-gray-50 text-gray-700 text-xs px-3 py-2 rounded-md border border-gray-300 transition-colors">
+          <i class="bi bi-eye"></i>
+          Ver Detalhes
+        </button>
+        {% if liberado.motorista.telefone %}
+        <button onclick="chamarMotoristaIndividual('{{ liberado.id }}')"
+          class="w-full flex items-center justify-center gap-2 bg-sky-600 hover:bg-sky-700 text-white text-xs px-3 py-2 rounded-md transition-colors">
+          <i class="bi bi-megaphone"></i>
+          Chamar Motorista
+        </button>
+        {% endif %}
+        {% if not liberado.portaria_chegada_armazem %}
+        <button onclick="abrirModalConfirmarArmazem('{{ liberado.id }}', '{{ liberado.placa_veiculo|escapejs }}')"
+          class="w-full flex items-center justify-center gap-2 bg-sky-600 hover:bg-sky-700 text-white text-xs px-3 py-2 rounded-md transition-colors">
+          <i class="bi bi-building-check"></i>
+          Confirmar Armazém
+        </button>
+        {% endif %}
       </div>
     </div>
     {% empty %}

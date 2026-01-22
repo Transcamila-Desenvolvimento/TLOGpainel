@@ -88,6 +88,10 @@ def portaria_agendamentos(request):
             'agora': timezone_now(),
         }
 
+        # OTIMIZAÇÃO: Se for requisição AJAX (SmartUpdate), retorna apenas o partial
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+             return render(request, 'partials/_tabela_portaria.html', context)
+
         return render(request, 'portaria_rdn.html', context)
 
     except Exception as e:
@@ -1409,11 +1413,20 @@ def visualizacao_processos(request):
         agendamentos_list = agendamentos_list.order_by('-data_agendada', 'horario_agendado')
         
         # Processar cada agendamento para adicionar etapas ordenadas
+        # Processar cada agendamento para adicionar etapas ordenadas
         agendamentos_com_etapas = []
         for agendamento in agendamentos_list:
+            etapas = get_etapas_ordenadas(agendamento)
+            
+            # Calcular progresso
+            total_etapas = len(etapas)
+            etapas_concluidas = sum(1 for e in etapas if e['concluida'])
+            
             agendamento_dict = {
                 'obj': agendamento,
-                'etapas_ordenadas': get_etapas_ordenadas(agendamento)
+                'etapas_ordenadas': etapas,
+                'total_etapas': total_etapas,
+                'etapas_concluidas': etapas_concluidas
             }
             agendamentos_com_etapas.append(agendamento_dict)
         
@@ -2006,19 +2019,47 @@ def exportar_agendamentos(request):
             'armazem_confirmado_por',
             'onda_liberado_por',
             'documentos_liberado_por',
-            'criado_por'
+            'criado_por',
+            'portaria_chegada_armazem_por',
+            'armazem_saida_por'
         )
         
         # Aplicar filtros baseados nos parâmetros GET (mesmos da lista)
         tipo_filter = request.GET.get('tipo')
         transportadora_filter = request.GET.get('transportadora')
         data_filter = request.GET.get('data')
+        data_inicio = request.GET.get('data_inicio')
+        data_fim = request.GET.get('data_fim')
         busca_filter = request.GET.get('busca')
         status_filter = request.GET.get('status')
         
-        # Se não houver data no filtro, usar a data atual como padrão
-        if not data_filter:
-            data_filter = timezone_today().strftime('%Y-%m-%d')
+        filename_data = ""
+        
+        # Lógica de filtro de data (Range > Single > Hoje)
+        if data_inicio and data_fim:
+            try:
+                dt_ini = datetime.strptime(data_inicio, '%Y-%m-%d').date()
+                dt_fim = datetime.strptime(data_fim, '%Y-%m-%d').date()
+                agendamentos = agendamentos.filter(data_agendada__range=[dt_ini, dt_fim])
+                filename_data = f"{data_inicio.replace('-','')}_{data_fim.replace('-','')}"
+            except ValueError:
+                data_obj = timezone_today()
+                agendamentos = agendamentos.filter(data_agendada=data_obj)
+                filename_data = data_obj.strftime('%Y%m%d')
+        elif data_filter:
+            try:
+                data_obj = datetime.strptime(data_filter, '%Y-%m-%d').date()
+                agendamentos = agendamentos.filter(data_agendada=data_obj)
+                filename_data = data_filter.replace('-', '')
+            except ValueError:
+                data_obj = timezone_today()
+                agendamentos = agendamentos.filter(data_agendada=data_obj)
+                filename_data = data_obj.strftime('%Y%m%d')
+        else:
+            # Se não houver data nem range, usar a data atual como padrão
+            data_obj = timezone_today()
+            agendamentos = agendamentos.filter(data_agendada=data_obj)
+            filename_data = data_obj.strftime('%Y%m%d')
         
         # Filtro por tipo (coleta/entrega)
         if tipo_filter:
@@ -2027,15 +2068,6 @@ def exportar_agendamentos(request):
         # Filtro por transportadora
         if transportadora_filter:
             agendamentos = agendamentos.filter(transportadora_id=transportadora_filter)
-        
-        # Filtro por data (sempre aplicado, padrão é hoje)
-        try:
-            data_obj = datetime.strptime(data_filter, '%Y-%m-%d').date()
-            agendamentos = agendamentos.filter(data_agendada=data_obj)
-        except ValueError:
-            # Se a data for inválida, usar a data atual
-            data_obj = timezone_today()
-            agendamentos = agendamentos.filter(data_agendada=data_obj)
         
         # Filtro por busca (ordem, motorista, placa, transportadora)
         if busca_filter:
@@ -2061,7 +2093,11 @@ def exportar_agendamentos(request):
         # Função auxiliar para formatar datetime
         def formatar_datetime(dt):
             if dt:
-                return dt.strftime('%d/%m/%Y %H:%M')
+                try:
+                    return django_timezone.localtime(dt).strftime('%d/%m/%Y %H:%M')
+                except Exception:
+                    # Fallback caso não seja aware ou ocorra erro
+                    return dt.strftime('%d/%m/%Y %H:%M')
             return ''
         
         def formatar_time(t):
@@ -2095,23 +2131,31 @@ def exportar_agendamentos(request):
             'Peso (kg)',
             'Status Geral',
             'Status Onda',
-            # Etapas - Portaria
-            'Portaria - Data/Hora',
+            # 1. Portaria
+            'Portaria - Liberação',
             'Portaria - Liberado Por',
-            # Etapas - Checklist
-            'Checklist - Número',
+            # 2. Portaria Chegada Armazém
+            'Portaria - Chegada Armazém',
+            'Portaria - Chegada Armazém Por',
+            # 3. Checklist
             'Checklist - Data/Hora',
             'Checklist - Preenchido Por',
+            'Checklist - Número',
             'Checklist - Observação',
-            # Etapas - Onda
+            # 4. Onda
             'Onda - Data/Hora',
             'Onda - Liberado Por',
-            # Etapas - Armazém
-            'Armazém - Data/Hora',
-            'Armazém - Confirmado Por',
-            # Etapas - Documentos
-            'Documentos - Data/Hora',
+            # 5. Início Armazém (Chegada)
+            'Armazém - Início',
+            'Armazém - Início Por',
+            # 6. Fim Armazém (Saída)
+            'Armazém - Fim',
+            'Armazém - Fim Por',
+            'Armazém - Fim Observação',
+            # 7. Documentos
+            'Documentos - Liberação',
             'Documentos - Liberado Por',
+            'Documentos - Observação',
             # Auditoria
             'Criado Em',
             'Criado Por',
@@ -2140,23 +2184,31 @@ def exportar_agendamentos(request):
                 float(agendamento.peso),
                 agendamento.get_status_geral_display(),
                 agendamento.get_onda_status_display(),
-                # Portaria
+                # 1. Portaria
                 formatar_datetime(agendamento.portaria_liberacao),
                 get_user_name(agendamento.portaria_liberado_por),
-                # Checklist
-                agendamento.checklist_numero or '',
+                # 2. Portaria Chegada Armazém
+                formatar_datetime(agendamento.portaria_chegada_armazem),
+                get_user_name(agendamento.portaria_chegada_armazem_por),
+                # 3. Checklist
                 formatar_datetime(agendamento.checklist_data),
                 get_user_name(agendamento.checklist_preenchido_por),
+                agendamento.checklist_numero or '',
                 agendamento.checklist_observacao or '',
-                # Onda
+                # 4. Onda
                 formatar_datetime(agendamento.onda_liberacao),
                 get_user_name(agendamento.onda_liberado_por),
-                # Armazém
+                # 5. Armazém Início
                 formatar_datetime(agendamento.armazem_chegada),
                 get_user_name(agendamento.armazem_confirmado_por),
-                # Documentos
+                # 6. Armazém Fim
+                formatar_datetime(agendamento.armazem_saida),
+                get_user_name(agendamento.armazem_saida_por),
+                agendamento.armazem_saida_observacao or '',
+                # 7. Documentos
                 formatar_datetime(agendamento.documentos_liberacao),
                 get_user_name(agendamento.documentos_liberado_por),
+                agendamento.documentos_observacao or '',
                 # Auditoria
                 formatar_datetime(agendamento.criado_em),
                 get_user_name(agendamento.criado_por),
@@ -2186,8 +2238,7 @@ def exportar_agendamentos(request):
         )
         
         # Nome do arquivo com data
-        data_arquivo = data_filter.replace('-', '') if data_filter else timezone_today().strftime('%Y%m%d')
-        response['Content-Disposition'] = f'attachment; filename=agendamentos_completo_{data_arquivo}.xlsx'
+        response['Content-Disposition'] = f'attachment; filename=agendamentos_completo_{filename_data}.xlsx'
         
         wb.save(response)
         return response
@@ -3040,9 +3091,18 @@ def visualizacao_processos(request):
         agendamentos_com_etapas = []
         for agendamento in agendamentos_list:
             etapas_ordenadas = get_etapas_ordenadas(agendamento)
-            # Calcular progresso
-            etapas_concluidas = sum(1 for etapa in etapas_ordenadas if etapa.get('concluida', False))
+            
+            # Calcular progresso: contar etapas concluídas em sequência
+            # Para na primeira etapa não concluída
+            etapas_concluidas = 0
+            for etapa in etapas_ordenadas:
+                if etapa.get('concluida', False):
+                    etapas_concluidas += 1
+                else:
+                    break
+            
             total_etapas = len(etapas_ordenadas)
+            
             agendamento_dict = {
                 'obj': agendamento,
                 'etapas_ordenadas': etapas_ordenadas,
@@ -3061,10 +3121,20 @@ def visualizacao_processos(request):
         motoristas_ids = agendamentos_list.values_list('motorista_id', flat=True).distinct()
         motoristas = Motorista.objects.filter(id__in=motoristas_ids).order_by('nome')
         
+        # Verificar se o usuário é administrador (grupo)
+        is_admin = False
+        try:
+            grupo_admin = GrupoUsuario.objects.filter(nome='administracao', ativo=True).first()
+            if grupo_admin and grupo_admin.usuarios.filter(id=request.user.id).exists():
+                is_admin = True
+        except Exception:
+            pass
+
         context = {
             'agendamentos': page_obj,
             'data_selecionada': data_selecionada.strftime('%Y-%m-%d'),  # Para preencher o campo de data no template
             'motoristas': motoristas,
+            'is_admin': is_admin,
         }
         
         return render(request, 'visualizacao_processos.html', context)
@@ -3091,7 +3161,7 @@ def get_etapas_ordenadas(agendamento):
     # Identificar tipo
     is_entrega = (agendamento.tipo == 'entrega')
 
-    # Portaria - sempre primeira etapa
+    # 1. Portaria - sempre primeira etapa
     portaria_concluida = bool(agendamento.portaria_liberacao)
     portaria_data = converter_para_timezone_rdn(agendamento.portaria_liberacao) if agendamento.portaria_liberacao else None
     portaria_usuario = agendamento.portaria_liberado_por.username if agendamento.portaria_liberado_por else None
@@ -3106,11 +3176,28 @@ def get_etapas_ordenadas(agendamento):
         'ordem_padrao': 1,
         'tipo': 'sequencial'
     })
-    
-    # Checklist - APENAS PARA COLETA
+
+    # 2. Chegada no Armazém (Confirmado pela Portaria)
+    chegada_concluida = bool(agendamento.portaria_chegada_armazem)
+    chegada_disponivel = portaria_concluida
+    chegada_data = converter_para_timezone_rdn(agendamento.portaria_chegada_armazem) if agendamento.portaria_chegada_armazem else None
+    chegada_usuario = agendamento.portaria_chegada_armazem_por.username if agendamento.portaria_chegada_armazem_por else None
+    chegada_conclusao = chegada_data.strftime('%d/%m/%Y %H:%M') if chegada_data else None
+    etapas.append({
+        'nome': 'Cheg. Arm.',
+        'concluida': chegada_concluida,
+        'disponivel': chegada_disponivel,
+        'data': chegada_data,
+        'usuario': chegada_usuario,
+        'conclusao_formatada': chegada_conclusao,
+        'ordem_padrao': 2,
+        'tipo': 'sequencial'
+    })
+
+    # 3. Checklist - APENAS PARA COLETA
     checklist_concluida = bool(agendamento.checklist_data)
     if not is_entrega:
-        checklist_disponivel = portaria_concluida
+        checklist_disponivel = chegada_concluida # Disponível após chegada no armazém
         checklist_data = converter_para_timezone_rdn(agendamento.checklist_data) if agendamento.checklist_data else None
         checklist_usuario = agendamento.checklist_preenchido_por.username if agendamento.checklist_preenchido_por else None
         checklist_conclusao = checklist_data.strftime('%d/%m/%Y %H:%M') if checklist_data else None
@@ -3121,12 +3208,12 @@ def get_etapas_ordenadas(agendamento):
             'data': checklist_data,
             'usuario': checklist_usuario,
             'conclusao_formatada': checklist_conclusao,
-            'ordem_padrao': 2,
+            'ordem_padrao': 3,
             'tipo': 'sequencial'
         })
     
-    # Onda (Coleta) ou OD (Entrega)
-    # etapa independente (vem antes do Armazém na visualização)
+    # 4. Onda (Coleta) ou OD (Entrega)
+    # etapa independente
     onda_concluida = bool(agendamento.onda_liberacao)
     onda_data = converter_para_timezone_rdn(agendamento.onda_liberacao) if agendamento.onda_liberacao else None
     
@@ -3137,77 +3224,142 @@ def get_etapas_ordenadas(agendamento):
     etapas.append({
         'nome': nome_etapa,
         'concluida': onda_concluida,
-        'disponivel': onda_concluida,  # Só fica disponível se já foi concluída
+        'disponivel': True,  # Sempre disponível - pode ser liberada a qualquer momento
         'data': onda_data,
         'usuario': onda_usuario,
         'conclusao_formatada': onda_conclusao,
-        'ordem_padrao': 3,
+        'ordem_padrao': 4,
         'tipo': 'independente'
     })
     
-    # Armazém - Concluída apenas quando a operação TERMINA (armazem_saida)
-    armazem_concluida = bool(agendamento.armazem_saida)
+    # 5. Início Operação (Entrada Armazém)
+    entrada_concluida = bool(agendamento.armazem_chegada)
     
-    # Disponibilidade do Armazém depende do tipo
+    # Disponibilidade
     if is_entrega:
-        # Entrega: Disponível após Portaria
-        armazem_disponivel = portaria_concluida
+        entrada_disponivel = chegada_concluida
     else:
-        # Coleta: Disponível após Checklist
-        armazem_disponivel = checklist_concluida
+        # Coleta: Disponível após Checklist e idealmente após Chegada
+        entrada_disponivel = checklist_concluida
         
-    # Usar armazem_saida para data de conclusão (quando a operação terminou)
-    armazem_data = converter_para_timezone_rdn(agendamento.armazem_saida) if agendamento.armazem_saida else None
-    armazem_usuario = agendamento.armazem_saida_por.username if agendamento.armazem_saida_por else None
-    armazem_conclusao = armazem_data.strftime('%d/%m/%Y %H:%M') if armazem_data else None
+    entrada_data = converter_para_timezone_rdn(agendamento.armazem_chegada) if agendamento.armazem_chegada else None
+    entrada_usuario = agendamento.armazem_confirmado_por.username if agendamento.armazem_confirmado_por else None
+    entrada_conclusao = entrada_data.strftime('%d/%m/%Y %H:%M') if entrada_data else None
     etapas.append({
-        'nome': 'Armazém',
-        'concluida': armazem_concluida,
-        'disponivel': armazem_disponivel,
-        'data': armazem_data,
-        'usuario': armazem_usuario,
-        'conclusao_formatada': armazem_conclusao,
-        'ordem_padrao': 4,
+        'nome': 'Início Arm.',
+        'concluida': entrada_concluida,
+        'disponivel': entrada_disponivel,
+        'data': entrada_data,
+        'usuario': entrada_usuario,
+        'conclusao_formatada': entrada_conclusao,
+        'ordem_padrao': 5,
+        'tipo': 'sequencial'
+    })
+
+    # 6. Fim Operação (Saída Armazém)
+    saida_concluida = bool(agendamento.armazem_saida)
+    saida_disponivel = entrada_concluida
+    
+    saida_data = converter_para_timezone_rdn(agendamento.armazem_saida) if agendamento.armazem_saida else None
+    saida_usuario = agendamento.armazem_saida_por.username if agendamento.armazem_saida_por else None
+    saida_conclusao = saida_data.strftime('%d/%m/%Y %H:%M') if saida_data else None
+    etapas.append({
+        'nome': 'Fim Arm.',
+        'concluida': saida_concluida,
+        'disponivel': saida_disponivel,
+        'data': saida_data,
+        'usuario': saida_usuario,
+        'conclusao_formatada': saida_conclusao,
+        'ordem_padrao': 6,
         'tipo': 'sequencial'
     })
     
-    # Documentos - última etapa, só disponível após armazém
+    # 7. Documentos - última etapa
     documentos_concluida = bool(agendamento.documentos_liberacao)
-    documentos_disponivel = armazem_concluida
+    documentos_disponivel = saida_concluida
     documentos_data = converter_para_timezone_rdn(agendamento.documentos_liberacao) if agendamento.documentos_liberacao else None
     documentos_usuario = agendamento.documentos_liberado_por.username if agendamento.documentos_liberado_por else None
     documentos_conclusao = documentos_data.strftime('%d/%m/%Y %H:%M') if documentos_data else None
     etapas.append({
             'nome': 'Documentos',
         'concluida': documentos_concluida,
-        'disponivel': documentos_disponivel,
+        'disponivel': True,  # Sempre disponível - pode ser liberada a qualquer momento
         'data': documentos_data,
         'usuario': documentos_usuario,
         'conclusao_formatada': documentos_conclusao,
-        'ordem_padrao': 5,
-        'tipo': 'sequencial'
+        'ordem_padrao': 7,
+        'tipo': 'independente'  # Tipo independente pois se move dinamicamente
     })
     
-    # Ordenar etapas pela ordem de conclusão (data/hora)
-    # Separar etapas concluídas e não concluídas
-    from datetime import datetime
-    etapas_concluidas = [e for e in etapas if e['concluida']]
-    etapas_nao_concluidas = [e for e in etapas if not e['concluida']]
+    # Calcular ordem dinâmica para Onda/OD e Documentos baseado nos timestamps
+    def calcular_ordem_dinamica(etapa, todas_etapas):
+        """
+        Calcula a ordem dinâmica baseada no timestamp de conclusão.
+        """
+        nome = etapa['nome']
+        dt_conclusao = etapa.get('data')
+
+        # Se não concluída, define posições padrão de "espera"
+        if not etapa['concluida']:
+            if nome in ['OD', 'Onda']:
+                return 3.5 # Antes do Início Armazém
+            if nome == 'Documentos':
+                return 7 # Final
+            return etapa.get('ordem_padrao', 999)
+
+        # Para Onda/OD - Inserir cronologicamente entre as etapas sequenciais
+        if nome in ['OD', 'Onda']:
+            if not dt_conclusao:
+                return 3.5
+                
+            # Pegar etapas sequenciais concluídas que têm data
+            sequenciais_concluidas = [
+                e for e in todas_etapas 
+                if e.get('tipo') == 'sequencial' and e.get('concluida') and e.get('data') and e['nome'] not in ['OD', 'Onda', 'Documentos']
+            ]
+            
+            # Encontrar a última etapa sequencial que ocorreu ANTES da Onda
+            ordem_anterior_max = 0
+            
+            for seq in sequenciais_concluidas:
+                if seq['data'] <= dt_conclusao:
+                    # Esta etapa ocorreu antes ou no mesmo tempo da Onda
+                    if seq['ordem_padrao'] > ordem_anterior_max:
+                        ordem_anterior_max = seq['ordem_padrao']
+            
+            if ordem_anterior_max > 0:
+                # Fica depois da última etapa sequencial anterior a ela
+                return ordem_anterior_max + 0.5
+            else:
+                # Ocorreu antes de qualquer etapa sequencial concluída
+                return 0.5
+        
+        # Para Documentos - Regras específicas de visibilidade
+        elif nome == 'Documentos':
+            # Buscar Fim do Armazém
+            fim_arm = next((e for e in todas_etapas if e['nome'] == 'Fim Arm.'), None)
+            
+            if fim_arm and fim_arm.get('concluida') and fim_arm.get('data') and dt_conclusao:
+                if dt_conclusao > fim_arm['data']:
+                    # Documentos feito DEPOIS do Fim do Armazém -> Final
+                    return 7
+            
+            # Caso contrário (feito antes do fim, ou fim não concluído) -> Entre Início e Fim
+            return 5.5
+        
+        # Para outras etapas, manter ordem padrão
+        else:
+            return etapa.get('ordem_padrao', 999)
     
-    # Ordenar concluídas pela data de conclusão (crescente)
-    etapas_concluidas_ordenadas = sorted(
-        etapas_concluidas,
-        key=lambda x: x['data'] if x['data'] else datetime.min
+    # Calcular ordem dinâmica para cada etapa
+    for etapa in etapas:
+        etapa['ordem_dinamica'] = calcular_ordem_dinamica(etapa, etapas)
+    
+    # Ordenar pela ordem dinâmica
+    etapas_ordenadas = sorted(
+        etapas,
+        key=lambda x: x.get('ordem_dinamica', x.get('ordem_padrao', 999))
     )
-    
-    # Ordenar não concluídas pela ordem padrão
-    etapas_nao_concluidas_ordenadas = sorted(
-        etapas_nao_concluidas,
-        key=lambda x: x.get('ordem_padrao', x.get('ordem', 999))
-    )
-    
-    # Combinar: concluídas primeiro (ordenadas por data), depois não concluídas (ordenadas por ordem padrão)
-    etapas_ordenadas = etapas_concluidas_ordenadas + etapas_nao_concluidas_ordenadas
     
     return etapas_ordenadas
 
@@ -3254,9 +3406,17 @@ def processos_painel(request):
                                          'checklist_preenchido_por', 'armazem_confirmado_por',
                                          'onda_liberado_por').order_by(F('atualizado_em').desc(nulls_last=True), 'horario_agendado'):
         etapas = get_etapas_ordenadas(ag)
-        # Calcular progresso
-        etapas_concluidas = sum(1 for etapa in etapas if etapa.get('concluida', False))
+        
+        # Calcular progresso: contar etapas concluídas em sequência
+        etapas_concluidas = 0
+        for etapa in etapas:
+            if etapa.get('concluida', False):
+                etapas_concluidas += 1
+            else:
+                break
+        
         total_etapas = len(etapas)
+        
         agendamentos_com_etapas.append({
             'agendamento': ag,
             'etapas': etapas,
@@ -4376,9 +4536,22 @@ def onda_tabela(request):
 def armazem_tabela(request):
     """Retorna apenas o partial HTML da tabela de armazem"""
     hoje = timezone_now().date()
-    # Lógica combinada do armazém
-    pendentes = Agendamento.objects.filter(data_agendada=hoje, armazem_chegada__isnull=True).filter((Q(tipo='coleta') & Q(checklist_data__isnull=False)) | (Q(tipo='entrega') & Q(portaria_liberacao__isnull=False))).select_related('transportadora', 'motorista').order_by('horario_agendado')
-    concluidos = Agendamento.objects.filter(data_agendada=hoje, armazem_chegada__isnull=False).select_related('transportadora', 'motorista', 'armazem_confirmado_por').order_by('-armazem_chegada')
+    # Lógica combinada do armazém (CORRIGIDA)
+    # PENDENTES: Inclui itens AGUARDANDO (armazem_chegada=None) OU EM OPERAÇÃO (armazem_chegada!=None e armazem_saida=None)
+    pendentes = Agendamento.objects.filter(
+        data_agendada=hoje, 
+        armazem_saida__isnull=True
+    ).filter(
+        (Q(tipo='coleta') & Q(checklist_data__isnull=False)) | 
+        (Q(tipo='entrega') & Q(portaria_liberacao__isnull=False))
+    ).select_related('transportadora', 'motorista').order_by('horario_agendado')
+    
+    # CONCLUÍDOS: Apenas quando tem SAÍDA registrada
+    concluidos = Agendamento.objects.filter(
+        data_agendada=hoje, 
+        armazem_saida__isnull=False
+    ).select_related('transportadora', 'motorista', 'armazem_confirmado_por', 'armazem_saida_por').order_by('-armazem_saida')
+    
     return render(request, 'partials/_tabela_armazem.html', {'pendentes': pendentes, 'concluidos': concluidos})
 
 @login_required

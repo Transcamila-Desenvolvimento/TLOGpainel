@@ -18,42 +18,52 @@ def agendamento_post_save(sender, instance, created, **kwargs):
     # Lógica "Generosa": Se o objeto está em determinada etapa, avisa a tela correspondente.
     # Isso garante que qualquer edição (mesmo que não mude o status) reflita na tela.
 
+    agora = timezone.now()
+    hoje = timezone.localdate(agora)
+
+    # REGRAS DE OTIMIZAÇÃO:
+    # A maioria das telas operacionais (Portaria, Armazém, Onda, CheckList) filtra por "hoje".
+    # Se o agendamento não é de hoje, não precisamos forçar atualização nessas telas.
+    eh_hoje = (instance.data_agendada == hoje)
+
     # 1. Regras Globais
-    telas_afetadas.add('portaria')       # Sempre impacta portaria (liberados/agendados)
-    telas_afetadas.add('agendamentos')   # Sempre impacta lista geral
-    
-    # 2. Se é coleta, sempre avisa a onda (para pegar imports/criações novas)
-    if instance.tipo == 'coleta':
-         telas_afetadas.add('onda')
+    # Lista Geral de Agendamentos (pode mostrar outros dias, então mantém)
+    telas_afetadas.add('agendamentos')
 
-    # 3. Se já passou pela portaria
-    if instance.portaria_liberacao:
-        telas_afetadas.add('checklist')
-        if instance.tipo == 'entrega':
-             telas_afetadas.add('armazem') # Entrega vai direto pro armazem
+    if eh_hoje:
+        telas_afetadas.add('portaria')       # Sempre impacta portaria (liberados/agendados) do dia
 
-    # 4. Se já fez checklist (Coleta)
-    if instance.checklist_data:
-        telas_afetadas.add('checklist')  # Atualiza para mover para concluídos
-        telas_afetadas.add('onda')       # Entra na fila de onda
-        telas_afetadas.add('armazem')    # Pode ser visivel no armazem (se onda liberada)
+        # 2. Se é coleta, sempre avisa a onda (para pegar imports/criações novas)
+        if instance.tipo == 'coleta':
+            telas_afetadas.add('onda')
 
-    # 5. Se onda liberada
-    if instance.onda_liberacao:
-        telas_afetadas.add('onda')
-        telas_afetadas.add('armazem')    # Libera para entrada no armazem
+        # 3. Se já passou pela portaria
+        if instance.portaria_liberacao:
+            telas_afetadas.add('checklist')
+            if instance.tipo == 'entrega':
+                telas_afetadas.add('armazem') # Entrega vai direto pro armazem
 
-    # 6. Se entrou no armazém
-    if instance.armazem_chegada:
-        telas_afetadas.add('armazem')            # Atualiza para mover para concluídos/trânsito
-        telas_afetadas.add('liberacao-documentos') # Entra na fila de documentos
+        # 4. Se já fez checklist (Coleta)
+        if instance.checklist_data:
+            telas_afetadas.add('checklist')  # Atualiza para mover para concluídos
+            telas_afetadas.add('onda')       # Entra na fila de onda
+            telas_afetadas.add('armazem')    # Pode ser visivel no armazem (se onda liberada)
 
-    # 7. Se documentos liberados
-    if instance.documentos_liberacao:
-        telas_afetadas.add('liberacao-documentos') # Move para concluídos
+        # 5. Se onda liberada
+        if instance.onda_liberacao:
+            telas_afetadas.add('onda')
+            telas_afetadas.add('armazem')    # Libera para entrada no armazem
+
+        # 6. Se entrou no armazém
+        if instance.armazem_chegada:
+            telas_afetadas.add('armazem')            # Atualiza para mover para concluídos/trânsito
+            telas_afetadas.add('liberacao-documentos') # Entra na fila de documentos
+
+        # 7. Se documentos liberados
+        if instance.documentos_liberacao:
+            telas_afetadas.add('liberacao-documentos') # Move para concluídos
 
     # Atualizar timestamps no banco (transacional e seguro para multi-worker)
-    agora = timezone.now()
     for tela in telas_afetadas:
         ControleAtualizacao.objects.update_or_create(
             tela=tela,
