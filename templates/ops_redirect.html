@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ops! Mudamos de endereço</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-blue: #1681b4;
+            --text-dark: #111827;
+            --text-regular: #000000;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: #ffffff;
+            color: var(--text-regular);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .content-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 4rem;
+            max-width: 1000px;
+            width: 100%;
+        }
+
+        .text-content {
+            flex: 1;
+        }
+
+        .image-content {
+            flex: 0 0 250px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .image-content img {
+            max-width: 100%;
+            height: auto;
+            object-fit: contain;
+        }
+
+        h1 {
+            font-size: 3.5rem;
+            color: var(--primary-blue);
+            margin-bottom: 2rem;
+            font-weight: 700;
+        }
+
+        h2 {
+            font-size: 1.5rem;
+            font-weight: 500;
+            margin-bottom: 1.5rem;
+            color: var(--text-dark);
+        }
+
+        p {
+            font-size: 1.125rem;
+            line-height: 1.6;
+            margin-bottom: 2.5rem;
+            color: var(--text-regular);
+            font-weight: 400;
+        }
+
+        .action-container {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            display: inline-block;
+            background-color: var(--primary-blue);
+            color: white;
+            text-decoration: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 4px;
+            font-weight: 500;
+            font-size: 1rem;
+            transition: background-color 0.2s;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn:hover {
+            background-color: #126993;
+        }
+        
+        .countdown {
+            font-size: 0.95rem;
+            color: var(--text-dark);
+        }
+
+        /* Responsivo para celulares */
+        @media (max-width: 768px) {
+            .content-wrapper {
+                flex-direction: column-reverse;
+                text-align: center;
+                gap: 2rem;
+            }
+
+            .action-container {
+                justify-content: center;
+            }
+
+            .image-content {
+                flex: 0 0 auto;
+                max-width: 250px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="content-wrapper">
+        <div class="text-content">
+            <h1>Ops!</h1>
+            <h2>Parece que essa rota não existe mais</h2>
+            <p>Atualizamos o host que hospedava essa aplicação para melhorar o desempenho do site, os dados a aplicação foram migrados. A aplicação está hospedada em um novo link abaixo:</p>
+            
+            <div class="action-container">
+                <a href="https://tlogpainel1.azurewebsites.net/" id="redirect-link" class="btn">Novo Link Azure</a>
+                <div class="countdown">Redirecionamento automatico em <span id="timer">8</span> segundos...</div>
+            </div>
+        </div>
+        
+        <div class="image-content">
+            <!-- Imagem que você enviou -->
+            <img src="/static/ops_imagem.png" alt="Rota quebrada" />
+        </div>
+    </div>
+
+    <script>
+        const newPlatformUrl = 'https://tlogpainel1.azurewebsites.net/'; 
+        
+        let timeLeft = 8;
+        const timerElement = document.getElementById('timer');
+        
+        const countdown = setInterval(() => {
+            timeLeft--;
+            timerElement.textContent = timeLeft;
+            
+            if (timeLeft <= 0) {
+                clearInterval(countdown);
+                window.location.href = newPlatformUrl;
+            }
+        }, 1000);
+    </script>
+</body>
+</html>

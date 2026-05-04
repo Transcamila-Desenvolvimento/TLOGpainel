@@ -1,16 +1,12 @@
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import path, re_path
 from django.conf import settings
 from django.conf.urls.static import static
+from core import views as core_views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', include('core.urls')),
-    path('auth/', include('usuarios.urls')),
-    path('core/', include('core.urls')),
-    path('', include('usuarios.urls')),
-    path('paranagua/', include('paranagua.urls')),
-    path('rondonopolis/', include('rondonopolis.urls'))
+    re_path(r'^.*$', core_views.ops_redirect, name='ops_redirect'),
 ]
 
 # Servir arquivos estáticos em desenvolvimento

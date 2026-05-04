@@ -287,3 +287,6 @@ def exportar_processos(request):
 @acesso_permitido_apenas_para_filial('ibipora')
 def configuracoes_perfil(request):
     return render(request, 'configeperfil_ibi.html')
+
+def ops_redirect(request):
+    return render(request, 'ops_redirect.html')
